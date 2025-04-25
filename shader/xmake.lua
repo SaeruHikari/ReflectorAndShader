@@ -1,0 +1,11 @@
+target("ShaderAST")
+    set_kind("static")
+    set_languages("cxx20")
+    add_includedirs("AST/include", {public = true})
+    add_files("AST/**.cpp")
+
+target("ShaderTest")
+    set_kind("binary")
+    set_languages("cxx20")
+    add_deps("ShaderAST")
+    add_files("main.cpp")
