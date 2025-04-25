@@ -24,7 +24,7 @@ target("libTooling")
     add_syslinks("pthread", "curses", {public=true})
     add_linkdirs("lib", {public=true})
     add_includedirs("include", {public=true})
-    add_packages("zstd")
+    add_packages("zstd", {public=true})
     on_load(function (target, opt)
         local libs = {}
         local p = "lib/lib*.a"

@@ -3,4 +3,9 @@
 namespace skr::SSL
 {
     
+struct ShaderCompiler
+{
+
+};
+
 }
