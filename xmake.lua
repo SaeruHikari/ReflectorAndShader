@@ -39,9 +39,9 @@ target("libTooling")
 end
 
 target("meta")
+    set_kind("binary")
     set_runtimes("MD")  -- runtime depend on LLVM compiled version, official version is MT
     add_deps("libTooling")
-    set_kind("binary")
     add_files("src/**.cpp")
 
 includes("shader/xmake.lua")
