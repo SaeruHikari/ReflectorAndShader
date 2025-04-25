@@ -4,6 +4,12 @@ target("ShaderAST")
     add_includedirs("AST/include", {public = true})
     add_files("AST/**.cpp")
 
+target("SSL")
+    set_kind("static")
+    set_languages("cxx20")
+    add_includedirs("LLVM/include", {public = true})
+    add_files("LLVM/**.cpp")
+
 target("ShaderTest")
     set_kind("binary")
     set_languages("cxx20")

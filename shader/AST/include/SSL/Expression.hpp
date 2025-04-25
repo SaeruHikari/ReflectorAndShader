@@ -3,7 +3,7 @@
 #include "Enums.hpp"
 #include "Type.hpp"
 
-namespace skr::shader::ast {
+namespace skr::SSL {
 
 struct BinaryExpression;
 struct ParameterExpression;

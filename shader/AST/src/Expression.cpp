@@ -1,6 +1,6 @@
-#include "Expression.hpp"
+#include "SSL/Expression.hpp"
 
-namespace skr::shader::ast {
+namespace skr::SSL {
 
 BinaryExpression* ExpressionFactory::Add(Expression* left, Expression* right)
 {

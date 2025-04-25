@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace skr::shader::ast {
+namespace skr::SSL {
 
 using Size = uint32_t;
 using String = std::u8string;

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace skr::shader::ast {
+namespace skr::SSL {
 
 enum class BinaryOp : uint32_t {
 

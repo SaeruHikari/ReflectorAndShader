@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "Type.hpp"
-#include "Expression.hpp"
+#include "SSL/Type.hpp"
+#include "SSL/Expression.hpp"
 
 struct SourceBuilder
 {
@@ -33,9 +33,9 @@ private:
 
 struct ASTVisitor
 {
-    skr::shader::ast::Name visit(const skr::shader::ast::Expression* expr)
+    skr::SSL::Name visit(const skr::SSL::Expression* expr)
     {
-        using namespace skr::shader::ast;
+        using namespace skr::SSL;
         SourceBuilder sb = {};
         if (auto binary = dynamic_cast<const BinaryExpression*>(expr))
         {
@@ -138,7 +138,7 @@ struct ASTVisitor
 
 int main()
 {
-    using namespace skr::shader::ast;
+    using namespace skr::SSL;
     TypeFactory types = {};
     types.add_type(Type(u8"float", sizeof(float)));
     types.add_type(Type(u8"uint32_t", sizeof(uint32_t)));

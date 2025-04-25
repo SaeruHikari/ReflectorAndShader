@@ -1,6 +1,7 @@
-#include "Type.hpp"
+#include "SSL/Type.hpp"
+#include <stdexcept>
 
-namespace skr::shader::ast {
+namespace skr::SSL {
 
 Member::Member(const Name& name, const Type& type)
     : _name(name), _type(&type)
@@ -45,7 +46,7 @@ Type& TypeFactory::get_type(const Name& name)
     auto it = types.find(name);
     if (it != types.end())
         return it->second;
-    throw std::exception("Type not found");
+    throw std::logic_error("Type not found");
 }
 
 }
