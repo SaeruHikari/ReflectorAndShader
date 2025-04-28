@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cassert>
-#include "SSL/Type.hpp"
-#include "SSL/Expression.hpp"
+#include <codecvt>
+#include "SSL/Decl.hpp"
+#include "SSL/AST.hpp"
 
 struct SourceBuilder
 {
@@ -33,16 +34,16 @@ private:
 
 struct ASTVisitor
 {
-    skr::SSL::Name visit(const skr::SSL::Expression* expr)
+    skr::SSL::String visitExpr(const skr::SSL::Stmt* stmt)
     {
         using namespace skr::SSL;
         SourceBuilder sb = {};
-        if (auto binary = dynamic_cast<const BinaryExpression*>(expr))
+        if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
         {
-            const auto left = visit(binary->left());
-            const auto right = visit(binary->right());
+            const auto left = visitExpr(binary->left());
+            const auto right = visitExpr(binary->right());
             auto op = binary->op();
-            Name op_name = u8"";
+            String op_name = u8"";
             switch (op)
             {
             case BinaryOp::ADD:
@@ -108,30 +109,77 @@ struct ASTVisitor
             if (((uint32_t)binary->op() & (uint32_t)BinaryOp::ASSIGN) != 0)
                 sb.endline(u8';');
         }
-        else if (auto param = dynamic_cast<const ParameterExpression*>(expr))
+        else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
         {
-            sb.append(param->name());
+            if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
+            {
+                sb.append(decl->type().name() + u8" " + decl->name());
+                if (auto init = decl->initializer())
+                    sb.append(u8" = " + visitExpr(init));
+                sb.endline(u8';');
+            }
         }
-        else if (auto constant = dynamic_cast<const ConstantExpression*>(expr))
+        else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
+        {
+            if (auto decl = dynamic_cast<const VarDecl*>(declRef->decl()))
+                sb.append(decl->name());
+        }
+        else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
         {
             sb.append(constant->v);
         }
-        else if (auto block = dynamic_cast<const BlockExpression*>(expr))
+        else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
         {
             sb.endline(u8'{');
             {
-                for (auto var : block->variables())
+                for (auto expr : block->children())
                 {
-                    sb.append(var->type().name() + u8" " + var->name());
-                    sb.endline(u8';');
-                }
-                for (auto expr : block->expressions())
-                {
-                    sb.append(visit(expr));
+                    sb.append(visitExpr(expr));
                 }
             }
             sb.endline(u8'}');
         }
+        return sb.content();
+    }
+
+    skr::SSL::String visit(const skr::SSL::TypeDecl* typeDecl)
+    {
+        using namespace skr::SSL;
+        SourceBuilder sb = {};
+        if (typeDecl->is_builtin())
+        {
+            sb.append(u8"//builtin type: ");
+            sb.append(typeDecl->name());
+            auto sizeString = std::to_wstring(typeDecl->size());
+            sb.append(u8", size: " + std::u8string((const char8_t*)sizeString.c_str()));
+            sb.endline();
+        }
+        else
+        {
+            sb.append(u8"struct " + typeDecl->name());
+            sb.endline(u8'{');
+            for (auto field : typeDecl->fields())
+            {
+                sb.append(u8"    " + field->type().name() + u8" " + field->name() + u8";\n");
+            }
+            sb.append(u8"};\n");
+        }
+        return sb.content();
+    }
+
+    skr::SSL::String visit(const skr::SSL::FunctionDecl* funcDecl)
+    {
+        using namespace skr::SSL;
+        SourceBuilder sb = {};
+        sb.append(funcDecl->return_type()->name() + u8" " + funcDecl->name() + u8"(");
+        /*
+        for (auto param : funcDecl->parameters())
+        {
+            sb.append(param->type().name() + u8" " + param->name() + u8", ");
+        }
+        */
+        sb.endline(u8')');
+        sb.append(visitExpr(funcDecl->body()));
         return sb.content();
     }
 };
@@ -139,28 +187,27 @@ struct ASTVisitor
 int main()
 {
     using namespace skr::SSL;
-    TypeFactory types = {};
-    types.add_type(Type(u8"float", sizeof(float)));
-    types.add_type(Type(u8"uint32_t", sizeof(uint32_t)));
-    types.add_type(Type(u8"uint64_t", sizeof(uint64_t)));
-    types.add_type(Type(u8"int32_t", sizeof(int32_t)));
-    types.add_type(Type(u8"int64_t", sizeof(int64_t)));
+    AST AST = {};
+    auto fields = std::vector<FieldDecl*>();
+    fields.emplace_back(AST.Field(u8"i", AST.I32Type));
+    auto DataType = AST.AddType(u8"Data", fields);
 
-    ExpressionFactory Expression = {};
-    auto a = Expression.Variable(types.get_type(u8"float"), u8"a");
-    auto b = Expression.Variable(types.get_type(u8"float"), u8"b");
-    auto c = Expression.Variable(types.get_type(u8"float"), u8"c");
+    auto a = AST.Variable(AST.F32Type, u8"a", AST.Constant(u8"2.f"));
+    auto b = AST.Variable(AST.F32Type, u8"b");
+    auto c = AST.Variable(AST.F32Type, u8"c");
+    auto init_a = AST.Assign(a->ref(), AST.Constant(u8"3.5f"));
+    auto init_b = AST.Assign(b->ref(), AST.Constant(u8"5.5f"));
+    auto init_c = AST.Assign(c->ref(), AST.Add(a->ref(), b->ref()));
 
-    auto block = Expression.Block();
-    block->add_variables(a, b, c);
-    block->add_expressions(
-        Expression.Assign(a, Expression.Constant(u8"3.5f")),
-        Expression.Assign(b, Expression.Constant(u8"5.5f")),
-        Expression.Assign(c, Expression.Add(a, b))
-    );
+    auto block = AST.Block({ a, b, c, init_a, init_b, init_c });
+    auto func = AST.Function(u8"main", block);
 
     ASTVisitor visitor = {};
-    Name content = visitor.visit(block);
+    String content = u8"";
+    for (auto type : AST.types())
+        content += visitor.visit(type);
+    for (auto func : AST.funcs())
+        content += visitor.visit(func);
     std::cout << std::string((const char*)content.c_str()) << std::endl;
 
     return 0;

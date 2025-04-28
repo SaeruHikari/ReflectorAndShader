@@ -24,5 +24,5 @@ target("LLVMTest")
     set_kind("binary")
     set_runtimes("MD")  -- runtime depend on LLVM compiled version, official version is MT
     set_languages("cxx20")
-    add_deps("SSLAST", "SSLLLVM")
+    add_deps("SSLLLVM")
     add_files("llvm_test.cpp")
