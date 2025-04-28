@@ -3,7 +3,7 @@
 
 namespace skr::SSL {
 
-struct ExprTranslator : public clang::RecursiveASTVisitor<ExprTranslator>
+struct DebugASTVisitor : public clang::RecursiveASTVisitor<DebugASTVisitor>
 {
     bool shouldVisitTemplateInstantiations() const { return true; }
     bool VisitStmt(clang::Stmt* x);

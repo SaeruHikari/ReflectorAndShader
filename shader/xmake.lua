@@ -9,9 +9,9 @@ target("SSLLLVM")
     set_kind("static")
     set_runtimes("MD")  -- runtime depend on LLVM compiled version, official version is MT
     set_languages("cxx20")
-    add_deps("libTooling")
+    add_deps("libTooling", "SSLAST")
     add_includedirs("LLVM/include", {public = true})
-    add_files("LLVM/**.cpp")
+    add_files("LLVM/src/**.cpp")
 
 target("ShaderTest")
     set_kind("binary")

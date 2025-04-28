@@ -1,9 +1,9 @@
-#include "ExpressionTranslator.hpp"
+#include "DebugASTVisitor.hpp"
 
 namespace skr::SSL
 {
 
-bool ExprTranslator::VisitStmt(clang::Stmt* x)
+bool DebugASTVisitor::VisitStmt(clang::Stmt* x)
 {
     /*
     if (IF(x))
@@ -11,7 +11,6 @@ bool ExprTranslator::VisitStmt(clang::Stmt* x)
     */
     if (auto cxxDecl = clang::dyn_cast<clang::DeclStmt>(x))
     {
-        llvm::outs() << x->getStmtClassName() << "\n";
         //for (auto child : cxxDecl->children())
         //    child->dump();
 
@@ -37,7 +36,7 @@ bool ExprTranslator::VisitStmt(clang::Stmt* x)
     return true;
 }
 
-bool ExprTranslator::VisitRecordDecl(clang::RecordDecl* x)
+bool DebugASTVisitor::VisitRecordDecl(clang::RecordDecl* x)
 {
     const bool isNormalClass = x->isCompleteDefinition()&& !x->isTemplated();
     const bool isTemplateSpec = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(x) && x->isCompleteDefinition();
@@ -48,15 +47,13 @@ bool ExprTranslator::VisitRecordDecl(clang::RecordDecl* x)
     return true;
 }
 
-bool ExprTranslator::VisitFunctionDecl(clang::FunctionDecl* x)
+bool DebugASTVisitor::VisitFunctionDecl(clang::FunctionDecl* x)
 {
     return true;
 }
 
-bool ExprTranslator::VisitParmVarDecl(clang::ParmVarDecl* x)
+bool DebugASTVisitor::VisitParmVarDecl(clang::ParmVarDecl* x)
 {
-    x->dump();
-    x->getBody()->dump();
     return true;
 }
 

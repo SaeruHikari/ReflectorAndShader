@@ -15,8 +15,13 @@ struct ShaderCompilerImpl : public ShaderCompiler
 {
 public:
     ShaderCompilerImpl(int argc, const char **argv)
-        : OptionsParser(CommonOptionsParser::create(argc, argv, ToolOptionsCategory))
     {
+        auto ExpectedParser = CommonOptionsParser::create(argc, argv, ToolOptionsCategory);
+        if (!ExpectedParser)
+        {
+            llvm::errs() << ExpectedParser.takeError();
+        }
+        OptionsParser = std::move(ExpectedParser.get());
         tool.emplace(ClangTool(OptionsParser->getCompilations(), OptionsParser->getSourcePathList()));
     }
 
@@ -27,7 +32,7 @@ public:
     }
 
 private:
-    llvm::Expected<CommonOptionsParser> OptionsParser;
+    std::optional<CommonOptionsParser> OptionsParser;
     std::optional<ClangTool> tool;
 };
 
