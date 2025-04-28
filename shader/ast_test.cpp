@@ -172,12 +172,14 @@ struct ASTVisitor
         using namespace skr::SSL;
         SourceBuilder sb = {};
         sb.append(funcDecl->return_type()->name() + u8" " + funcDecl->name() + u8"(");
-        /*
-        for (auto param : funcDecl->parameters())
+        for (size_t i = 0; i < funcDecl->parameters().size(); i++)
         {
-            sb.append(param->type().name() + u8" " + param->name() + u8", ");
+            auto param = funcDecl->parameters()[i];
+            String content = param->type().name() + u8" " + param->name();
+            if (i > 0)
+                content = u8", " + content;
+            sb.append(content);
         }
-        */
         sb.endline(u8')');
         sb.append(visitExpr(funcDecl->body()));
         return sb.content();
@@ -200,7 +202,7 @@ int main()
     auto init_c = AST.Assign(c->ref(), AST.Add(a->ref(), b->ref()));
 
     auto block = AST.Block({ a, b, c, init_a, init_b, init_c });
-    auto func = AST.Function(u8"main", block);
+    auto func = AST.Function(u8"main", AST.I32Type, {}, block);
 
     ASTVisitor visitor = {};
     String content = u8"";

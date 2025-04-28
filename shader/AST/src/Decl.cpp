@@ -9,6 +9,11 @@ Decl::Decl(const AST& ast)
 
 }
 
+const Stmt* VarDecl::body() const
+{
+    return nullptr;
+}
+
 String VarDecl::dump() const
 {
     return _name;
@@ -20,8 +25,8 @@ VarDecl::VarDecl(const AST& ast, const TypeDecl* type, const Name& name, Expr* i
 
 }
 
-FieldDecl::FieldDecl(const AST& ast, const Name& name, const TypeDecl& type)
-    : Decl(ast), _name(name), _type(&type)
+FieldDecl::FieldDecl(const AST& ast, const Name& name, const TypeDecl* type)
+    : Decl(ast), _name(name), _type(type)
 {
 
 }
@@ -39,6 +44,11 @@ const Size FieldDecl::size() const
 const Size FieldDecl::alignment() const
 {
     return _type->alignment();
+}
+
+const Stmt* FieldDecl::body() const
+{
+    return nullptr;
 }
 
 String FieldDecl::dump() const
@@ -64,16 +74,42 @@ TypeDecl::TypeDecl(const AST& ast, const Name& name, std::span<FieldDecl*> field
     }
 }
 
+const Stmt* TypeDecl::body() const
+{
+    return nullptr;
+}
+
 String TypeDecl::dump() const
 {
     return u8"UNDEFINED";
 }
 
-FunctionDecl::FunctionDecl(const AST& ast, const Name& name, const CompoundStmt* body)
-    : Decl(ast), _name(name), _return_type(ast.VoidType), _body(body)
+ParamVarDecl::ParamVarDecl(const AST& ast, const Name& name, const TypeDecl* type)
+    : Decl(ast), _name(name), _type(type)
+{
+
+}
+
+const Name& ParamVarDecl::name() const
+{
+    return _name;
+}
+
+const Stmt* ParamVarDecl::body() const
+{
+    return nullptr;
+}
+
+String ParamVarDecl::dump() const
+{
+    return u8"UNDEFINED";
+}
+
+FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+    : Decl(ast), _name(name), _return_type(return_type), _body(body)
 {
     _parameters.reserve(_parameters.size());
-    for (const auto& param : _parameters)
+    for (const auto& param : params)
     {
         _parameters.emplace_back(param);
     }

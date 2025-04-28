@@ -18,7 +18,8 @@ public:
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     FieldDecl* Field(const Name& name, const TypeDecl* type);
-    FunctionDecl* Function(const Name& name, CompoundStmt* body);
+    FunctionDecl* Function(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
+    ParamVarDecl* Param(const TypeDecl* type, const Name& name);
 
     TypeDecl* const AddType(const Name& name, std::span<FieldDecl*> members);
     TypeDecl* const AddBuiltinType(const Name& name, uint32_t size, uint32_t alignment = 4);

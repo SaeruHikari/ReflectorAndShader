@@ -12,16 +12,16 @@ bool ExprTranslator::VisitStmt(clang::Stmt* x)
     if (auto cxxDecl = clang::dyn_cast<clang::DeclStmt>(x))
     {
         llvm::outs() << x->getStmtClassName() << "\n";
-        for (auto child : cxxDecl->children())
-            child->dump();
+        //for (auto child : cxxDecl->children())
+        //    child->dump();
 
         const auto declGroup = cxxDecl->getDeclGroup();
         for (auto decl : declGroup)
         {
             if (auto var = clang::dyn_cast<clang::VarDecl>(decl))
             {
-                llvm::outs() << var->getName() << " " << var->getDeclName() << "\n";
                 /*
+                llvm::outs() << var->getName() << " " << var->getDeclName() << "\n";
                 clang::QualType t = var->getType();
                 if (auto R = t.getCanonicalType()->getAsRecordDecl())
                 {
@@ -50,6 +50,13 @@ bool ExprTranslator::VisitRecordDecl(clang::RecordDecl* x)
 
 bool ExprTranslator::VisitFunctionDecl(clang::FunctionDecl* x)
 {
+    return true;
+}
+
+bool ExprTranslator::VisitParmVarDecl(clang::ParmVarDecl* x)
+{
+    x->dump();
+    x->getBody()->dump();
     return true;
 }
 

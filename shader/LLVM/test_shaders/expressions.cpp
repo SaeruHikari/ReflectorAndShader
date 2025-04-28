@@ -19,6 +19,11 @@ auto TestBinary() {
     return m + x + xx + yy + ww + complex;
 }
 
+void Test(int d)
+{
+    
+}
+
 int main()
 {
     TestBinary();

@@ -12,6 +12,7 @@ struct Decl
 public:
     virtual String dump() const = 0;
     virtual ~Decl() = default;
+    virtual const Stmt* body() const = 0;
 
 protected:
     Decl(const AST& ast);
@@ -24,6 +25,7 @@ public:
     const TypeDecl& type() const { return *_type; }
     String name() const { return _name; }
     Expr* initializer() const { return _initializer; }
+    const Stmt* body() const override;
 
     String dump() const override;
     
@@ -42,12 +44,13 @@ public:
     const Name& name() const;
     const Size size() const;
     const Size alignment() const;
+    const Stmt* body() const override;
 
     String dump() const override;
 
 private:
     friend struct AST;    
-    FieldDecl(const AST& ast, const Name& _name, const TypeDecl& type);
+    FieldDecl(const AST& ast, const Name& _name, const TypeDecl* type);
     Name _name = u8"__INVALID_MEMBER__";
     const TypeDecl* _type = nullptr;
 };
@@ -60,6 +63,7 @@ public:
     const Size size() const  { return _size; }
     const Size alignment() const { return _alignment; }
     const auto& fields() const { return _fields; }
+    const Stmt* body() const override;
 
     String dump() const override;
 
@@ -75,41 +79,50 @@ private:
     std::vector<FieldDecl*> _fields;
 };
 
-struct ParamVarDecl;
+struct ParamVarDecl : public Decl
+{
+public:
+    const TypeDecl& type() const { return *_type; }
+    const Name& name() const;
+    const Stmt* body() const override;
+
+    String dump() const override;
+
+private:
+    friend struct AST;    
+    ParamVarDecl(const AST& ast, const Name& _name, const TypeDecl* type);
+    Name _name = u8"__INVALID_MEMBER__";
+    const TypeDecl* _type = nullptr;
+};
 
 struct FunctionDecl : public Decl
 {
 public:
-    String dump() const override;
     const Name& name() const { return _name; }
     const TypeDecl* return_type() const { return _return_type; }
     const auto& parameters() const { return _parameters; }
-    const CompoundStmt* body() const { return _body; }
+    const Stmt* body() const override { return _body; }
+
+    String dump() const override;
 
 private:
     friend struct AST;
-    FunctionDecl(const AST& ast, const Name& name, const CompoundStmt* body);
+    FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
     const Name _name = u8"__INVALID_FUNC__";
+    const CompoundStmt* _body = nullptr;
     TypeDecl* const _return_type = nullptr;
     std::vector<const ParamVarDecl*> _parameters;
-    const CompoundStmt* _body = nullptr;
 };
 
-struct Function
-{
-public:
-
-private:
-    std::vector<const Expr*> expressions; 
-};
-
-
-struct Method
+struct MethodDecl : public Decl
 {
 public:
     
+
 private:
-    std::vector<const Expr*> expressions; 
+    friend struct AST;
+    MethodDecl(const AST& ast, const Name& name, const TypeDecl* type, const CompoundStmt* body);
+    const Name _name = u8"__INVALID_FUNC__";
 };
 
 } // namespace skr::SSL

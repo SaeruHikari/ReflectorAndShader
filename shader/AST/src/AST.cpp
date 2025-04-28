@@ -27,16 +27,23 @@ ConstantExpr* AST::Constant(const FloatSemantics& v)
 
 FieldDecl* AST::Field(const Name& name, const TypeDecl* type)
 {
-    auto decl = new FieldDecl(*this, name, *type);
+    auto decl = new FieldDecl(*this, name, type);
     _decls.emplace_back(decl);
     return decl;
 }
 
-FunctionDecl* AST::Function(const Name& name, CompoundStmt* body)
+FunctionDecl* AST::Function(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body)
 {
-    auto decl = new FunctionDecl(*this, name, body);
+    auto decl = new FunctionDecl(*this, name, return_type, params, body);
     _decls.emplace_back(decl);
     _funcs.emplace_back(decl);
+    return decl;
+}
+
+ParamVarDecl* AST::Param(const TypeDecl* type, const Name& name)
+{
+    auto decl = new ParamVarDecl(*this, name, type);
+    _decls.emplace_back(decl);
     return decl;
 }
 

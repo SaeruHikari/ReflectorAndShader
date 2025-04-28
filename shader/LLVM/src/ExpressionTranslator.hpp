@@ -9,6 +9,7 @@ struct ExprTranslator : public clang::RecursiveASTVisitor<ExprTranslator>
     bool VisitStmt(clang::Stmt* x);
     bool VisitRecordDecl(clang::RecordDecl* x);
     bool VisitFunctionDecl(clang::FunctionDecl* x);
+    bool VisitParmVarDecl(clang::ParmVarDecl* x);
 };
 
 } // namespace skr::SSL
