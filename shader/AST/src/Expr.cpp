@@ -9,7 +9,7 @@ Expr::Expr(const AST& ast) : ValueStmt(ast) {}
 Name BinaryExpr::dump() const
 {
     auto name = magic_enum::enum_name(op());
-    return Name((const char8_t*)name.data(), name.size());
+    return Name(std::wstring(name.begin(), name.end()), name.size());
 }
 
 BinaryExpr::BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op) 

@@ -5,8 +5,14 @@
 #include <clang/AST/Stmt.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/DeclTemplate.h>
+#include "SSL/TestASTVisitor.hpp"
 
 namespace skr::SSL {
+
+inline static String ToString(clang::StringRef str)
+{
+    return String(str.begin(), str.end());
+}
 
 template <typename T>
 inline static T GetArgumentAt(clang::AnnotateAttr* attr, size_t index)
@@ -22,6 +28,22 @@ inline static T GetArgumentAt(clang::AnnotateAttr* attr, size_t index)
         static_assert(false, "Unsupported type for GetArgumentAt");
     }
 }
+
+inline static clang::AnnotateAttr* ExistShaderAttrWithName(clang::Decl* decl, const char* name)
+{
+    auto attrs = decl->specific_attrs<clang::AnnotateAttr>();
+    for (auto attr : attrs)
+    {
+        if (attr->getAnnotation() != "skr-shader")
+            continue;
+        if (GetArgumentAt<clang::StringRef>(attr, 0) == name)
+            return attr;
+    }
+    return nullptr;
+}
+
+inline static clang::AnnotateAttr* IsIgnore(clang::Decl* decl) { return ExistShaderAttrWithName(decl, "ignore"); }
+inline static clang::AnnotateAttr* IsBuiltin(clang::Decl* decl) { return ExistShaderAttrWithName(decl, "builtin"); }
 
 CompileFrontendAction::CompileFrontendAction()
     : clang::ASTFrontendAction()
@@ -59,20 +81,20 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* x)
     if (x->isUnion()) return true; // unions are not supported
     if (!x->isCompleteDefinition()) return true; // skip forward declares
     if (TST && !TST->hasDefinition()) return true; // skip no-def template specs
+    if (IsIgnore(x)) return true; // skip ignored types
 
-    auto attrs = TST ? TST->specific_attrs<clang::AnnotateAttr>() : x->specific_attrs<clang::AnnotateAttr>();
-    for (auto attr : attrs)
+    if (auto BuiltinAttr = IsBuiltin(x))
     {
-        if (attr->getAnnotation() != "skr-shader")
-            continue;
-        
-        auto name = GetArgumentAt<clang::StringRef>(attr, 0);
-        if (name == "ignore") 
-            return true;
-        if (name == "builtin") 
-            return true;
-    }
+        llvm::outs() << x->getName() << "\n";
+        return true;
+    } 
 
+    for (auto field : x->fields())
+    {
+        // field->getType()
+        // AST.Field(field->getName(), field->);
+    }
+    AST.DeclareType(ToString(x->getName()), {});
     // llvm::outs() << x->getName() << "\n";
 
     return true;

@@ -23,12 +23,12 @@ CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements)
 
 String CompoundStmt::dump() const
 {
-    String result = u8"{\n";
+    String result = L"{\n";
     for (const auto& child : _children)
     {
-        result += child->dump() + u8"\n";
+        result += child->dump() + L"\n";
     }
-    result += u8"}\n";
+    result += L"}\n";
     return result;
 }
 

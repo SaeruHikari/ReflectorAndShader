@@ -33,7 +33,7 @@ protected:
     friend struct AST;    
     VarDecl(const AST& ast, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     const TypeDecl* _type = nullptr;
-    Name _name = u8"__INVALID_VAR__";
+    Name _name = L"__INVALID_VAR__";
     Expr* _initializer = nullptr;
 };
 
@@ -48,10 +48,10 @@ public:
 
     String dump() const override;
 
-private:
+protected:
     friend struct AST;    
     FieldDecl(const AST& ast, const Name& _name, const TypeDecl* type);
-    Name _name = u8"__INVALID_MEMBER__";
+    Name _name = L"__INVALID_MEMBER__";
     const TypeDecl* _type = nullptr;
 };
 
@@ -67,16 +67,23 @@ public:
 
     String dump() const override;
 
-private:
+protected:
     friend struct AST;
     TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, bool is_builtin = true);
     TypeDecl(const AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
 
-    Name _name = u8"__INVALID_TYPE__";
+    Name _name = L"__INVALID_TYPE__";
     const bool _is_builtin = true;
     Size _size = 0;
     Size _alignment = 0;
     std::vector<FieldDecl*> _fields;
+};
+
+struct ArrayTypeDecl : public TypeDecl
+{
+    protected:
+    friend struct AST;
+    ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count);
 };
 
 struct ParamVarDecl : public Decl
@@ -88,10 +95,10 @@ public:
 
     String dump() const override;
 
-private:
+    protected:
     friend struct AST;    
     ParamVarDecl(const AST& ast, const Name& _name, const TypeDecl* type);
-    Name _name = u8"__INVALID_MEMBER__";
+    Name _name = L"__INVALID_MEMBER__";
     const TypeDecl* _type = nullptr;
 };
 
@@ -105,10 +112,10 @@ public:
 
     String dump() const override;
 
-private:
+    protected:
     friend struct AST;
     FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
-    const Name _name = u8"__INVALID_FUNC__";
+    const Name _name = L"__INVALID_FUNC__";
     const CompoundStmt* _body = nullptr;
     TypeDecl* const _return_type = nullptr;
     std::vector<const ParamVarDecl*> _parameters;
@@ -119,10 +126,10 @@ struct MethodDecl : public Decl
 public:
     
 
-private:
+protected:
     friend struct AST;
     MethodDecl(const AST& ast, const Name& name, const TypeDecl* type, const CompoundStmt* body);
-    const Name _name = u8"__INVALID_FUNC__";
+    const Name _name = L"__INVALID_FUNC__";
 };
 
 } // namespace skr::SSL

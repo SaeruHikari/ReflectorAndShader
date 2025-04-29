@@ -6,7 +6,7 @@
 namespace skr::SSL {
 
 using Size = uint32_t;
-using String = std::u8string;
+using String = std::wstring;
 using Name = String;
 
 struct AST;
@@ -32,7 +32,7 @@ struct DeclStmt : Stmt
 public:
     DeclRefExpr* ref() const;
     const Decl* decl() const { return _decl; }
-    String dump() const override { return u8"DeclStmt"; }
+    String dump() const override { return L"DeclStmt"; }
 
 protected:
     friend struct AST;

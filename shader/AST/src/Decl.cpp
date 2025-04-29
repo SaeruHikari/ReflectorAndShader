@@ -1,5 +1,6 @@
 #include "SSL/AST.hpp"
 #include "SSL/Decl.hpp"
+#include <format>
 
 namespace skr::SSL {
 
@@ -53,7 +54,7 @@ const Stmt* FieldDecl::body() const
 
 String FieldDecl::dump() const
 {
-    return u8"UNDEFINED";
+    return L"UNDEFINED";
 }
 
 TypeDecl::TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment, bool is_builtin)
@@ -81,7 +82,13 @@ const Stmt* TypeDecl::body() const
 
 String TypeDecl::dump() const
 {
-    return u8"UNDEFINED";
+    return L"UNDEFINED";
+}
+
+ArrayTypeDecl::ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count)
+    : TypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), true)
+{
+
 }
 
 ParamVarDecl::ParamVarDecl(const AST& ast, const Name& name, const TypeDecl* type)
@@ -102,7 +109,7 @@ const Stmt* ParamVarDecl::body() const
 
 String ParamVarDecl::dump() const
 {
-    return u8"UNDEFINED";
+    return L"UNDEFINED";
 }
 
 FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
@@ -117,7 +124,7 @@ FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const ret
 
 String FunctionDecl::dump() const
 {
-    return u8"UNDEFINED";
+    return L"UNDEFINED";
 }
 
 }
