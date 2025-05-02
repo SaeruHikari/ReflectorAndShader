@@ -25,7 +25,7 @@ inline static T GetArgumentAt(clang::AnnotateAttr* attr, size_t index)
     }
     else
     {
-        static_assert(false, "Unsupported type for GetArgumentAt");
+        static_assert(std::is_same_v<T, std::nullptr_t>, "Unsupported type for GetArgumentAt");
     }
 }
 
