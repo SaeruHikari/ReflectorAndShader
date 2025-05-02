@@ -7,7 +7,6 @@ if (is_os("windows")) then
 
 target("libTooling")
     set_kind("phony")
-    add_cxflags("-Wno-c++11-narrowing", "-fno-rtti", {public = true, force = true, tools={"gcc", "clang"}})
     -- add_cxflags("/GR-", {public=true, force=true, tools={"clang_cl", "cl"}})
     add_links("lib/**", {public=true})
     add_syslinks("Version", "ntdll", "Ws2_32", "advapi32", "Shcore", "user32", "shell32", "Ole32", {public = true})
@@ -18,8 +17,6 @@ else
 add_requires("zstd")
 target("libTooling")
     set_kind("phony")
-    add_cxflags("-Wno-c++11-narrowing", {public=true})
-    add_cxflags("-fno-rtti", {public=true, force=true, tools={"gcc", "clang"}})
     -- add_cxflags("/GR-", {public=true, force=true, tools={"clang_cl", "cl"}})
     add_syslinks("pthread", "curses", {public=true})
     add_linkdirs("lib", {public=true})
@@ -42,6 +39,7 @@ target("meta")
     set_kind("binary")
     set_runtimes("MD")  -- runtime depend on LLVM compiled version, official version is MT
     add_cxflags("/GR-", {public=true, force=true, tools={"clang_cl", "cl"}})
+    add_cxflags("-Wno-c++11-narrowing", "-fno-rtti", {public = true, force = true, tools={"gcc", "clang"}})
     add_deps("libTooling")
     add_files("src/**.cpp")
 
