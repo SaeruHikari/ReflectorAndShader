@@ -20,11 +20,6 @@ const Stmt* VarDecl::body() const
     return nullptr;
 }
 
-String VarDecl::dump() const
-{
-    return _name;
-}
-
 VarDecl::VarDecl(const AST& ast, const TypeDecl* type, const Name& name, Expr* initializer)
     : Decl(ast), _type(type), _name(name), _initializer(initializer)
 {
@@ -57,11 +52,6 @@ const Stmt* FieldDecl::body() const
     return nullptr;
 }
 
-String FieldDecl::dump() const
-{
-    return L"UNDEFINED";
-}
-
 TypeDecl::TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment, bool is_builtin)
     : Decl(ast), _name(name), _is_builtin(is_builtin), _size(size), _alignment(alignment)
 {
@@ -83,11 +73,6 @@ TypeDecl::TypeDecl(const AST& ast, const Name& name, std::span<FieldDecl*> field
 const Stmt* TypeDecl::body() const
 {
     return nullptr;
-}
-
-String TypeDecl::dump() const
-{
-    return L"UNDEFINED";
 }
 
 ArrayTypeDecl::ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count)
@@ -112,11 +97,6 @@ const Stmt* ParamVarDecl::body() const
     return nullptr;
 }
 
-String ParamVarDecl::dump() const
-{
-    return L"UNDEFINED";
-}
-
 FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
     : Decl(ast), _name(name), _return_type(return_type), _body(body)
 {
@@ -125,11 +105,6 @@ FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const ret
     {
         _parameters.emplace_back(param);
     }
-}
-
-String FunctionDecl::dump() const
-{
-    return L"UNDEFINED";
 }
 
 MethodDecl::MethodDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)

@@ -70,7 +70,8 @@ ASTConsumer::~ASTConsumer()
 
 void ASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 {
-    // Context.getTranslationUnitDecl()->dump();
+    Context.getTranslationUnitDecl()->dump();
+    
     DebugASTVisitor debug = {};
     debug.TraverseDecl(Context.getTranslationUnitDecl());
     TraverseDecl(Context.getTranslationUnitDecl());

@@ -40,5 +40,7 @@ int main()
         content += visitor.visit(func);
     std::wcout << content << std::endl;
 
+    std::wcout << AST.dump() << std::endl;
+
     return 0;
 }

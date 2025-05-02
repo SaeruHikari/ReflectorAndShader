@@ -10,7 +10,7 @@ struct TypeDecl;
 struct Decl
 {
 public:
-    virtual String dump() const = 0;
+    virtual String dump() const;
     virtual ~Decl() = default;
     virtual const Stmt* body() const = 0;
     virtual const DeclRefExpr* ref() const;
@@ -27,8 +27,6 @@ public:
     String name() const { return _name; }
     Expr* initializer() const { return _initializer; }
     const Stmt* body() const override;
-
-    String dump() const override;
     
 protected:
     friend struct AST;    
@@ -47,8 +45,6 @@ public:
     const Size alignment() const;
     const Stmt* body() const override;
 
-    String dump() const override;
-
 protected:
     friend struct AST;    
     FieldDecl(const AST& ast, const Name& _name, const TypeDecl* type);
@@ -65,8 +61,6 @@ public:
     const Size alignment() const { return _alignment; }
     const auto& fields() const { return _fields; }
     const Stmt* body() const override;
-
-    String dump() const override;
 
 protected:
     friend struct AST;
@@ -94,8 +88,6 @@ public:
     const Name& name() const;
     const Stmt* body() const override;
 
-    String dump() const override;
-
     protected:
     friend struct AST;    
     ParamVarDecl(const AST& ast, const Name& _name, const TypeDecl* type);
@@ -111,9 +103,7 @@ public:
     const auto& parameters() const { return _parameters; }
     const Stmt* body() const override { return _body; }
 
-    String dump() const override;
-
-    protected:
+protected:
     friend struct AST;
     FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
     const Name _name = L"__INVALID_FUNC__";

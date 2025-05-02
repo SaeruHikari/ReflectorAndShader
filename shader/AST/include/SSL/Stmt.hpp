@@ -19,7 +19,7 @@ public:
     virtual ~Stmt() = default;
     
     inline std::span<Stmt* const> children() const { return _children; }
-    virtual String dump() const = 0;
+    String dump() const;
 
 protected:
     Stmt(const AST& ast);
@@ -32,7 +32,6 @@ struct DeclStmt : Stmt
 public:
     DeclRefExpr* ref() const;
     const Decl* decl() const { return _decl; }
-    String dump() const override { return L"DeclStmt"; }
 
 protected:
     friend struct AST;
@@ -43,9 +42,6 @@ protected:
 
 struct CompoundStmt final : Stmt
 {
-public:
-    String dump() const override;
-
 protected:
     friend struct AST;
     CompoundStmt(const AST& ast, std::span<Stmt* const> statements);

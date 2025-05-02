@@ -21,17 +21,6 @@ CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements)
     }
 }
 
-String CompoundStmt::dump() const
-{
-    String result = L"{\n";
-    for (const auto& child : _children)
-    {
-        result += child->dump() + L"\n";
-    }
-    result += L"}\n";
-    return result;
-}
-
 CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
 {
     auto exp = new CompoundStmt(*this, statements);

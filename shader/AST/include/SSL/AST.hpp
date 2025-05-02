@@ -42,7 +42,7 @@ public:
     std::span<TypeDecl* const> types() const { return _types; }
     std::span<FunctionDecl* const> funcs() const { return _funcs; }
 
-    // String dump();
+    String dump() const;
 
 private:
     std::vector<Decl*> _decls;
