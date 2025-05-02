@@ -10,6 +10,11 @@ Decl::Decl(const AST& ast)
 
 }
 
+const DeclRefExpr* Decl::ref() const
+{
+    return const_cast<AST*>(_ast)->Ref(this);
+}
+
 const Stmt* VarDecl::body() const
 {
     return nullptr;
@@ -125,6 +130,12 @@ FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const ret
 String FunctionDecl::dump() const
 {
     return L"UNDEFINED";
+}
+
+MethodDecl::MethodDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+    : FunctionDecl(ast, name, return_type, params, body)
+{
+
 }
 
 }

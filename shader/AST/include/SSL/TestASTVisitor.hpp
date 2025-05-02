@@ -1,5 +1,6 @@
 #pragma once
 #include "AST.hpp"
+#include <cassert>
 
 namespace skr::SSL
 {
@@ -37,7 +38,19 @@ struct ASTVisitor
     {
         using namespace skr::SSL;
         SourceBuilder sb = {};
-        if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
+        if (auto init = dynamic_cast<const InitListExpr*>(stmt))
+        {
+            sb.append(L"{ ");
+            for (size_t i = 0; i < init->children().size(); i++)
+            {
+                auto expr = init->children()[i];
+                if (i > 0)
+                    sb.append(L", ");
+                sb.append(visitExpr(expr));
+            }
+            sb.append(L" }");
+        }
+        else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
         {
             const auto left = visitExpr(binary->left());
             const auto right = visitExpr(binary->right());
@@ -127,6 +140,15 @@ struct ASTVisitor
         {
             sb.append(constant->v);
         }
+        else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
+        {
+            auto owner = member->owner();
+            auto field = member->member_decl();
+            if (auto _as_field = dynamic_cast<const FieldDecl*>(field))
+            {
+                sb.append(visitExpr(owner) + L"." + _as_field->name());
+            }
+        }
         else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
         {
             sb.endline(u8'{');
@@ -161,7 +183,7 @@ struct ASTVisitor
                 sb.append(L"    " + field->type().name() + L" " + field->name() + L";\n");
             }
             sb.append(L"};\n");
-        }
+        }        
         return sb.content();
     }
 

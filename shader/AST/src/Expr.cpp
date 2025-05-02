@@ -41,4 +41,27 @@ Name ConstantExpr::dump() const
     return v;
 }
 
+InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 
+    : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
+{
+    for (auto expr : _exprs)
+        _children.emplace_back(expr);
+}
+
+Name InitListExpr::dump() const
+{
+    return L"UNDEFINED";
+}
+
+Name MemberExpr::dump() const
+{
+    return L"UNDEFINED";
+}
+
+MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
+    : Expr(ast), _owner(owner), _member_decl(field)
+{
+
+}
+
 } // namespace skr::SSL

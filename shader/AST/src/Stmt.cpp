@@ -9,7 +9,7 @@ DeclStmt::DeclStmt(const AST& ast, Decl* decl) : Stmt(ast), _decl(decl) {}
 
 DeclRefExpr* DeclStmt::ref() const
 {
-    return const_cast<AST*>(_ast)->Ref(this);
+    return const_cast<AST*>(_ast)->Ref(decl());
 }
 
 CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements) 

@@ -57,4 +57,9 @@ bool DebugASTVisitor::VisitParmVarDecl(clang::ParmVarDecl* x)
     return true;
 }
 
+bool DebugASTVisitor::VisitMemberExpr(clang::MemberExpr* x)
+{
+    return true;
+}
+
 }

@@ -13,6 +13,7 @@ public:
     virtual String dump() const = 0;
     virtual ~Decl() = default;
     virtual const Stmt* body() const = 0;
+    virtual const DeclRefExpr* ref() const;
 
 protected:
     Decl(const AST& ast);
@@ -121,15 +122,13 @@ public:
     std::vector<const ParamVarDecl*> _parameters;
 };
 
-struct MethodDecl : public Decl
+struct MethodDecl : public FunctionDecl
 {
 public:
-    
 
 protected:
     friend struct AST;
-    MethodDecl(const AST& ast, const Name& name, const TypeDecl* type, const CompoundStmt* body);
-    const Name _name = L"__INVALID_FUNC__";
+    MethodDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
 };
 
 } // namespace skr::SSL

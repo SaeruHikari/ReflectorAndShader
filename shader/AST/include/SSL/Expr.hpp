@@ -8,6 +8,7 @@ namespace skr::SSL {
 struct BinaryExpr;
 struct ParameterExpr;
 struct ConstantExpr;
+struct InitListExpr;
 using FloatSemantics = String;
 
 struct Expr : public ValueStmt
@@ -26,7 +27,7 @@ public:
     const Expr* right() const { return _right; }
     const BinaryOp op() const { return _op; }
 
-    Name dump() const override;
+    String dump() const override;
 
 private:
     friend struct AST;
@@ -39,7 +40,7 @@ private:
 struct DeclRefExpr : Expr
 {
 public:
-    Name dump() const override;
+    String dump() const override;
     const Decl* decl() const { return _decl; }
 
 private:
@@ -48,10 +49,16 @@ private:
     const Decl* _decl = nullptr;
 };
 
+struct CallExpr : Expr
+{
+public:
+    String dump() const override;
+};
+
 struct ConstantExpr : Expr
 {
 public:
-    Name dump() const override;
+    String dump() const override;
     const String v;
 
 private:
@@ -59,4 +66,29 @@ private:
     ConstantExpr(const AST& ast, const String& v);
 };
 
-}
+struct InitListExpr : Expr
+{
+public:
+    String dump() const override;
+
+private:
+    friend struct AST;
+    InitListExpr(const AST& ast, std::span<Expr*> exprs);
+    std::vector<Expr*> _exprs;
+};
+
+struct MemberExpr : Expr
+{
+public:
+    String dump() const override;
+    const DeclRefExpr* owner() const { return _owner; }
+    const Decl* member_decl() const { return _member_decl; }
+
+private:
+    friend struct AST;
+    MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
+    const DeclRefExpr* _owner = nullptr;
+    const Decl* _member_decl = nullptr;
+};
+
+} // namespace skr::SSL

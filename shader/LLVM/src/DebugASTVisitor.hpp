@@ -10,6 +10,7 @@ struct DebugASTVisitor : public clang::RecursiveASTVisitor<DebugASTVisitor>
     bool VisitRecordDecl(clang::RecordDecl* x);
     bool VisitFunctionDecl(clang::FunctionDecl* x);
     bool VisitParmVarDecl(clang::ParmVarDecl* x);
+    bool VisitMemberExpr(clang::MemberExpr* x);
 };
 
 } // namespace skr::SSL

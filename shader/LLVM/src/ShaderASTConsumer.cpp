@@ -70,6 +70,7 @@ ASTConsumer::~ASTConsumer()
 
 void ASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 {
+    // Context.getTranslationUnitDecl()->dump();
     DebugASTVisitor debug = {};
     debug.TraverseDecl(Context.getTranslationUnitDecl());
     TraverseDecl(Context.getTranslationUnitDecl());
@@ -88,12 +89,13 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* x)
         llvm::outs() << x->getName() << "\n";
         return true;
     } 
-
-    for (auto field : x->fields())
-    {
-        // field->getType()
-        // AST.Field(field->getName(), field->);
-    }
+    /*
+        for (auto field : x->fields())
+        {
+            // field->getType()
+            // AST.Field(field->getName(), field->);
+        }
+    */
     AST.DeclareType(ToString(x->getName()), {});
     // llvm::outs() << x->getName() << "\n";
 
