@@ -35,11 +35,13 @@ target("libTooling")
     
 end
 
+target("libTooling")
+    add_cxflags("/GR-", {public=true, force=true, tools={"clang_cl", "cl"}})
+    add_cxflags("-Wno-c++11-narrowing", "-fno-rtti", {public = true, force = true, tools={"gcc", "clang"}})
+
 target("meta")
     set_kind("binary")
     set_runtimes("MD")  -- runtime depend on LLVM compiled version, official version is MT
-    add_cxflags("/GR-", {public=true, force=true, tools={"clang_cl", "cl"}})
-    add_cxflags("-Wno-c++11-narrowing", "-fno-rtti", {public = true, force = true, tools={"gcc", "clang"}})
     add_deps("libTooling")
     add_files("src/**.cpp")
 
