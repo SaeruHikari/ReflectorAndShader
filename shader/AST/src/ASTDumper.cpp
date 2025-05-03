@@ -1,4 +1,5 @@
 #include "SSL/ASTDumper.hpp"
+#include <typeinfo>
 
 namespace skr::SSL {
 
@@ -13,9 +14,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.indent([&](){
             for (auto expr : init->children())
             {
-                auto fork = sb.fork();
-                visit(expr, fork);
-                sb.merge(fork);
+                visit(expr, sb);
             }
         });
     }
@@ -90,13 +89,8 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.endline();
         
         sb.indent([&](){
-            auto l_fork = sb.fork();
-            visit(binary->left(), l_fork);
-            sb.merge(l_fork);
-            
-            auto r_fork = sb.fork();
-            Visit(binary->right(), r_fork);
-            sb.merge(r_fork);
+            visit(binary->left(), sb);
+            Visit(binary->right(), sb);
         });
     }
     else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
@@ -107,9 +101,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.indent([&](){
             if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
             {
-                auto fork = sb.fork();
-                visit(decl, fork);
-                sb.merge(fork);
+                visit(decl, sb);
             }
         });
     }
@@ -136,24 +128,23 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         }
         sb.endline();
 
-        auto owner = member->owner();
-        {
-            auto fork = sb.fork();
-            visit(owner, fork);
-            sb.merge(fork);
-        }
+        sb.indent([&](){
+            auto owner = member->owner();
+            visit(owner, sb);
+        });
     }
     else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
     {
         sb.append_node_type(L"CompoundStmt ");
         sb.endline();
-        for (auto expr : block->children())
-        {
-            auto fork = sb.fork();
-            visit(expr, fork);
-            sb.merge(fork);
-            sb.endline();
-        }
+        
+        sb.indent([&](){
+            for (auto expr : block->children())
+            {
+                visit(expr, sb);
+                sb.endline();
+            }
+        });
     }
 }
 
@@ -174,9 +165,7 @@ void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
         // sb.indent();
         for (auto field : typeDecl->fields())
         {
-            auto fork = sb.fork();
-            visit(field, fork);
-            sb.merge(fork);
+            visit(field, sb);
         }
     }
 }
@@ -205,18 +194,15 @@ void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& 
     sb.append_node_type(L"FunctionDecl ");
     sb.append(funcDecl->name());
     sb.endline();
-    for (auto param : funcDecl->parameters())
-    {
-        auto fork = sb.fork();
-        visit(param, fork);
-        sb.merge(fork);
-    }
     
-    {
-        auto fork = sb.fork();
-        visit(funcDecl->body(), fork);
-        sb.merge(fork);
-    }
+    sb.indent([&](){
+        for (auto param : funcDecl->parameters())
+        {
+            visit(param, sb);
+        }
+        
+        visit(funcDecl->body(), sb);
+    });
 }
 
 void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
@@ -227,9 +213,7 @@ void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
     sb.endline();
     if (auto init = varDecl->initializer())
     {
-        auto fork = sb.fork();
-        visit(init, fork);
-        sb.merge(fork);
+        visit(init, sb);
     }
 }
 
@@ -263,7 +247,7 @@ void ASTDumper::Visit(const skr::SSL::Decl* decl, SourceBuilderNew& sb)
 
 void ASTDumper::Visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
 {
-    sb.append(L"UNSUPPORTED_EXPR_TYPE");
+    visit(stmt, sb);
 }
 
 String Decl::dump() const

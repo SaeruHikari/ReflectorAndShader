@@ -128,12 +128,6 @@ inline static const wchar_t *get_source_builder_style(ESourceBuilderStyle style)
 }
 
 struct SourceBuilderNew {
-  enum class EIndentOp {
-    Keep,
-    Enter,
-    Leave,
-    Single,
-  };
   enum class EIndentNode {
     Empty,      // means last node in this indent level
     IndentHint, // means not last node in this indent level
@@ -317,26 +311,8 @@ struct SourceBuilderNew {
     for (size_t i = 0; i < _lines.size(); ++i) {
       const auto &line_data = _lines[i];
 
-      // get indent op
-      EIndentOp indent_op = EIndentOp::Keep;
-      auto cur_indent = line_data.indent;
-      if (i == 0 && _lines.size() == 1) {
-        indent_op = EIndentOp::Single;
-      } else if (i == 0) {
-        indent_op = EIndentOp::Enter;
-      } else if (i == _lines.size() - 1) {
-        indent_op = EIndentOp::Leave;
-      } else if (cur_indent > _lines[i - 1].indent && cur_indent > _lines[i + 1].indent) {
-        indent_op = EIndentOp::Single;
-      } else if (cur_indent > _lines[i - 1].indent) {
-        indent_op = EIndentOp::Enter;
-      } else if (cur_indent > _lines[i + 1].indent) {
-        indent_op = EIndentOp::Leave;
-      }
-      cur_indent = line_data.indent;
-
       // build line
-      std::wstring line_content = line_builder(line_data, indent_op);
+      std::wstring line_content = line_builder(line_data);
 
       // append line
       result += line_content;
@@ -355,7 +331,7 @@ struct SourceBuilderNew {
   }
 
   //===================some builders===================
-  static std::wstring line_builder_tree(const LineData &line_data, EIndentOp indent_op) {
+  static std::wstring line_builder_tree(const LineData &line_data) {
     std::wstring result;
 
     // build indent
@@ -383,7 +359,8 @@ struct SourceBuilderNew {
 
     return result;
   }
-  static std::wstring line_builder_code(const LineData &line_data, EIndentOp indent_op) {
+  
+  static std::wstring line_builder_code(const LineData &line_data) {
     std::wstring result;
 
     // build indent
