@@ -2,18 +2,22 @@
 
 namespace skr::SSL {
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::Stmt* stmt)
+void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
     if (auto init = dynamic_cast<const InitListExpr*>(stmt))
     {
-        sb.append(L"InitListExpr ");
+        sb.append_node_type(L"InitListExpr ");
         sb.endline();
         
-        for (auto expr : init->children())
-        {
-            sb.append(visit(expr));
-        }
+        sb.indent([&](){
+            for (auto expr : init->children())
+            {
+                auto fork = sb.fork();
+                visit(expr, fork);
+                sb.merge(fork);
+            }
+        });
     }
     else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
@@ -81,41 +85,50 @@ skr::SSL::String ASTDumper::visit(const skr::SSL::Stmt* stmt)
             assert(false && "Unsupported binary operation");
         }
 
-        sb.append(L"BinaryExpr ");
+        sb.append_node_type(L"BinaryExpr ");
         sb.append(op_name);
         sb.endline();
         
         sb.indent([&](){
-            sb.append(visit(binary->left()));
-            sb.append(visit(binary->right()));
+            auto l_fork = sb.fork();
+            visit(binary->left(), l_fork);
+            sb.merge(l_fork);
+            
+            auto r_fork = sb.fork();
+            Visit(binary->right(), r_fork);
+            sb.merge(r_fork);
         });
     }
     else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
     {
-        sb.append(L"DeclStmt ");
+        sb.append_node_type(L"DeclStmt ");
         sb.endline();
-
-        if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
-        {
-            sb.append(visit(decl));
-        }
+        
+        sb.indent([&](){
+            if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
+            {
+                auto fork = sb.fork();
+                visit(decl, fork);
+                sb.merge(fork);
+            }
+        });
     }
     else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
     {
-        sb.append(L"DeclRefExpr ");
+        sb.append_node_type(L"DeclRefExpr ");
         if (auto decl = dynamic_cast<const VarDecl*>(declRef->decl()))
             sb.append(decl->name());
         sb.endline();
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
     {
-        sb.append(L"ConstantExpr ");
+        sb.append_node_type(L"ConstantExpr ");
         sb.append(constant->v);
         sb.endline();
     }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
     {
-        sb.append(L"MemberExpr ");
+        sb.append_node_type(L"MemberExpr ");
         auto field = member->member_decl();
         if (auto _as_field = dynamic_cast<const FieldDecl*>(field))
         {
@@ -124,125 +137,147 @@ skr::SSL::String ASTDumper::visit(const skr::SSL::Stmt* stmt)
         sb.endline();
 
         auto owner = member->owner();
-        sb.append(visit(owner));
+        {
+            auto fork = sb.fork();
+            visit(owner, fork);
+            sb.merge(fork);
+        }
     }
     else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
     {
-        sb.append(L"CompoundStmt ");
+        sb.append_node_type(L"CompoundStmt ");
         sb.endline();
         for (auto expr : block->children())
         {
-            sb.append(visit(expr));
+            auto fork = sb.fork();
+            visit(expr, fork);
+            sb.merge(fork);
+            sb.endline();
         }
     }
-    return sb.content();
 }
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl)
+void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
     if (typeDecl->is_builtin())
     {
-        sb.append(L"BuiltinType ");
+        sb.append_node_type(L"BuiltinType ");
         sb.append(typeDecl->name());
         sb.endline();
     }
     else
     {
-        sb.append(L"TypeDecl ");
+        sb.append_node_type(L"TypeDecl ");
         sb.append(typeDecl->name());
         sb.endline();
         // sb.indent();
         for (auto field : typeDecl->fields())
         {
-            sb.append(visit(field));
+            auto fork = sb.fork();
+            visit(field, fork);
+            sb.merge(fork);
         }
-    }        
-    return sb.content();
+    }
 }
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::FieldDecl* fieldDecl)
+void ASTDumper::visit(const skr::SSL::FieldDecl* fieldDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append(L"FieldDecl ");
-    sb.append(fieldDecl->type().name() + L" " + fieldDecl->name());
+    sb.append_node_type(L"FieldDecl ");
+    sb.append_type(fieldDecl->type().name() + L" ");
+    sb.append(fieldDecl->name());
     sb.endline(u8';');
-    return sb.content();
 }
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl)
+void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append(L"ParamVarDecl ");
-    sb.append(paramDecl->type().name() + L" " + paramDecl->name());
+    sb.append_node_type(L"ParamVarDecl ");
+    sb.append_type(paramDecl->type().name() + L" ");
+    sb.append(paramDecl->name());
     sb.endline(u8';');
-    return sb.content();
 }
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl)
+void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append(L"FunctionDecl ");
+    sb.append_node_type(L"FunctionDecl ");
     sb.append(funcDecl->name());
     sb.endline();
     for (auto param : funcDecl->parameters())
     {
-        sb.append(visit(param));
+        auto fork = sb.fork();
+        visit(param, fork);
+        sb.merge(fork);
     }
-    sb.append(visit(funcDecl->body()));
-    return sb.content();
+    
+    {
+        auto fork = sb.fork();
+        visit(funcDecl->body(), fork);
+        sb.merge(fork);
+    }
 }
 
-skr::SSL::String ASTDumper::visit(const skr::SSL::VarDecl* varDecl)
+void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append(L"VarDecl ");
+    sb.append_node_type(L"VarDecl ");
     sb.append(varDecl->name());
     sb.endline();
     if (auto init = varDecl->initializer())
-        sb.append(visit(init));
-    return sb.content();
+    {
+        auto fork = sb.fork();
+        visit(init, fork);
+        sb.merge(fork);
+    }
 }
 
-skr::SSL::String ASTDumper::Visit(const skr::SSL::Decl* decl)
+void ASTDumper::Visit(const skr::SSL::Decl* decl, SourceBuilderNew& sb)
 {
     if (auto typeDecl = dynamic_cast<const TypeDecl*>(decl))
     {
-        return visit(typeDecl);
+        visit(typeDecl, sb);
     }
     else if (auto fieldDecl = dynamic_cast<const FieldDecl*>(decl))
     {
-        return visit(fieldDecl);
+        visit(fieldDecl, sb);
     }
     else if (auto paramDecl = dynamic_cast<const ParamVarDecl*>(decl))
     {
-        return visit(paramDecl);
+        visit(paramDecl, sb);
     }
     else if (auto funcDecl = dynamic_cast<const FunctionDecl*>(decl))
     {
-        return visit(funcDecl);
+        visit(funcDecl, sb);
     }
     else if (auto varDecl = dynamic_cast<const VarDecl*>(decl))
     {
-        return visit(varDecl);
+        visit(varDecl, sb);
     }
-    assert(0 && "Unsupported decl type");
-    return L"UNSUPPORTED_DECL_TYPE";
+    else
+    {
+        assert(0 && "Unsupported decl type");
+    }
 }
 
-skr::SSL::String ASTDumper::Visit(const skr::SSL::Stmt* stmt)
+void ASTDumper::Visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
 {
-    return L"UNSUPPORTED_EXPR_TYPE";
+    sb.append(L"UNSUPPORTED_EXPR_TYPE");
 }
 
 String Decl::dump() const
 {
-    return ASTDumper().Visit(this);
+    SourceBuilderNew sb;
+    ASTDumper().Visit(this, sb);
+    return sb.build(SourceBuilderNew::line_builder_tree);
 }
 
 String Stmt::dump() const
 {
-    return ASTDumper().Visit(this);
+    SourceBuilderNew sb;
+    ASTDumper().Visit(this, sb);
+    return sb.build(SourceBuilderNew::line_builder_tree);
 }
 
 String AST::dump() const

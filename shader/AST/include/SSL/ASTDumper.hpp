@@ -7,18 +7,16 @@ namespace skr::SSL {
 struct ASTDumper
 {
 public:
-    skr::SSL::String Visit(const skr::SSL::Decl* decl);
-    skr::SSL::String Visit(const skr::SSL::Stmt* stmt);
+    void Visit(const skr::SSL::Decl* decl, SourceBuilderNew& sb);
+    void Visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb);
 
 protected:
-    skr::SSL::String visit(const skr::SSL::Stmt* stmt);
-    skr::SSL::String visit(const skr::SSL::TypeDecl* typeDecl);
-    skr::SSL::String visit(const skr::SSL::FieldDecl* fieldDecl);
-    skr::SSL::String visit(const skr::SSL::ParamVarDecl* paramDecl);
-    skr::SSL::String visit(const skr::SSL::FunctionDecl* funcDecl);
-    skr::SSL::String visit(const skr::SSL::VarDecl* varDecl);
-
-    SourceBuilder sb = SourceBuilder(L"| ");
+    void visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb);
+    void visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb);
+    void visit(const skr::SSL::FieldDecl* fieldDecl, SourceBuilderNew& sb);
+    void visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew& sb);
+    void visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb);
+    void visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb);
 };
 
 } // namespace skr::SSL
