@@ -8,7 +8,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     using namespace skr::SSL;
     if (auto init = dynamic_cast<const InitListExpr*>(stmt))
     {
-        sb.append_node_type(L"InitListExpr ");
+        sb.append_expr(L"InitListExpr ");
         sb.endline();
         
         sb.indent([&](){
@@ -84,7 +84,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
             assert(false && "Unsupported binary operation");
         }
 
-        sb.append_node_type(L"BinaryExpr ");
+        sb.append_expr(L"BinaryExpr ");
         sb.append(op_name);
         sb.endline();
         
@@ -95,7 +95,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     }
     else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
     {
-        sb.append_node_type(L"DeclStmt ");
+        sb.append_expr(L"DeclStmt ");
         sb.endline();
         
         sb.indent([&](){
@@ -107,20 +107,20 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     }
     else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
     {
-        sb.append_node_type(L"DeclRefExpr ");
+        sb.append_expr(L"DeclRefExpr ");
         if (auto decl = dynamic_cast<const VarDecl*>(declRef->decl()))
             sb.append(decl->name());
         sb.endline();
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
     {
-        sb.append_node_type(L"ConstantExpr ");
+        sb.append_expr(L"ConstantExpr ");
         sb.append(constant->v);
         sb.endline();
     }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
     {
-        sb.append_node_type(L"MemberExpr ");
+        sb.append_expr(L"MemberExpr ");
         auto field = member->member_decl();
         if (auto _as_field = dynamic_cast<const FieldDecl*>(field))
         {
@@ -135,7 +135,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     }
     else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
     {
-        sb.append_node_type(L"CompoundStmt ");
+        sb.append_expr(L"CompoundStmt ");
         sb.endline();
         
         sb.indent([&](){
@@ -153,13 +153,13 @@ void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
     using namespace skr::SSL;
     if (typeDecl->is_builtin())
     {
-        sb.append_node_type(L"BuiltinType ");
+        sb.append_decl(L"BuiltinType ");
         sb.append(typeDecl->name());
         sb.endline();
     }
     else
     {
-        sb.append_node_type(L"TypeDecl ");
+        sb.append_decl(L"TypeDecl ");
         sb.append(typeDecl->name());
         sb.endline();
         // sb.indent();
@@ -173,16 +173,15 @@ void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
 void ASTDumper::visit(const skr::SSL::FieldDecl* fieldDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_node_type(L"FieldDecl ");
-    sb.append_type(fieldDecl->type().name() + L" ");
+    sb.append_decl(L"FieldDecl ");
     sb.append(fieldDecl->name());
-    sb.endline(u8';');
+    sb.append_type(L" '" + fieldDecl->type().name() + L"'");
 }
 
 void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_node_type(L"ParamVarDecl ");
+    sb.append_decl(L"ParamVarDecl ");
     sb.append_type(paramDecl->type().name() + L" ");
     sb.append(paramDecl->name());
     sb.endline(u8';');
@@ -191,7 +190,7 @@ void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew&
 void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_node_type(L"FunctionDecl ");
+    sb.append_decl(L"FunctionDecl ");
     sb.append(funcDecl->name());
     sb.endline();
     
@@ -208,7 +207,7 @@ void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& 
 void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_node_type(L"VarDecl ");
+    sb.append_decl(L"VarDecl ");
     sb.append(varDecl->name());
     sb.endline();
     if (auto init = varDecl->initializer())

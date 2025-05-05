@@ -198,8 +198,12 @@ struct SourceBuilderNew {
     append(get_source_builder_style(ESBS_Clear));
     return *this;
   }
-  SourceBuilderNew &append_node_type(const std::wstring &content) {
+  SourceBuilderNew &append_expr(const std::wstring &content) {
     append(content, ESBS_FrontCyan);
+    return *this;
+  }
+  SourceBuilderNew &append_decl(const std::wstring &content) {
+    append(content, ESBS_FrontRed);
     return *this;
   }
   SourceBuilderNew &append_location(const std::wstring &content) {
@@ -359,7 +363,7 @@ struct SourceBuilderNew {
 
     return result;
   }
-  
+
   static std::wstring line_builder_code(const LineData &line_data) {
     std::wstring result;
 

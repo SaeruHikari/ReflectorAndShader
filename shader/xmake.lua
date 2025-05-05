@@ -4,6 +4,8 @@ target("SSLAST")
     set_languages("cxx20")
     add_includedirs("AST/include", {public = true})
     add_files("AST/**.cpp")
+    add_includedirs("AST/double-conversion", {public = true})
+    add_files("AST/double-conversion/**.cc")
 
 target("SSLLLVM")
     set_kind("static")
