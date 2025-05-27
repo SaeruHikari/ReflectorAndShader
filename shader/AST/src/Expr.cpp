@@ -19,10 +19,16 @@ DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl)
 
 }
 
-ConstantExpr::ConstantExpr(const AST& ast, const String& v) 
-    : Expr(ast), v(v) 
+ConstantExpr::ConstantExpr(const AST& ast, const IntValue& v) 
+    : Expr(ast), value(v) 
 {
 
+}
+
+ConstantExpr::ConstantExpr(const AST& ast, const FloatValue& v) 
+    : Expr(ast), value(v)
+{
+    
 }
 
 InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 

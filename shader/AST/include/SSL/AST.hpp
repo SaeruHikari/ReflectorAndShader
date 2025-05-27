@@ -1,6 +1,7 @@
 #pragma once
 #include "Expr.hpp"
 #include "Decl.hpp"
+#include "Constant.hpp"
 #include <map>
 
 namespace skr::SSL {
@@ -21,7 +22,8 @@ public:
     BinaryExpr* Add(Expr* left, Expr* right);
     BinaryExpr* Assign(Expr* left, Expr* right);
     CompoundStmt* Block(const std::vector<Stmt*>& statements);
-    ConstantExpr* Constant(const FloatSemantics& v);
+    ConstantExpr* Constant(const IntValue& v);
+    ConstantExpr* Constant(const FloatValue& v);
     MemberExpr* Member(DeclRefExpr* base, const FieldDecl* field);
     DeclRefExpr* Ref(const Decl* decl);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);

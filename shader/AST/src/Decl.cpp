@@ -10,7 +10,7 @@ Decl::Decl(const AST& ast)
 
 }
 
-const DeclRefExpr* Decl::ref() const
+DeclRefExpr* Decl::ref() const
 {
     return const_cast<AST*>(_ast)->Ref(this);
 }
@@ -81,20 +81,10 @@ ArrayTypeDecl::ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t c
 
 }
 
-ParamVarDecl::ParamVarDecl(const AST& ast, const Name& name, const TypeDecl* type)
-    : Decl(ast), _name(name), _type(type)
+ParamVarDecl::ParamVarDecl(const AST& ast, const TypeDecl* type, const Name& name)
+    : VarDecl(ast, type, name)
 {
 
-}
-
-const Name& ParamVarDecl::name() const
-{
-    return _name;
-}
-
-const Stmt* ParamVarDecl::body() const
-{
-    return nullptr;
 }
 
 FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)

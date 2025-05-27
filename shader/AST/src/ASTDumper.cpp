@@ -115,7 +115,21 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
     {
         sb.append_expr(L"ConstantExpr ");
-        sb.append(constant->v);
+        if (auto i = std::get_if<IntValue>(&constant->value))
+        {
+            if (i->is_signed())
+                sb.append(L"IntValue: " + std::to_wstring(i->value<int64_t>().get()));
+            else
+                sb.append(L"UIntValue: " + std::to_wstring(i->value<uint64_t>().get()));
+        }
+        else if (auto f = std::get_if<FloatValue>(&constant->value))
+        {
+            sb.append(L"FloatValue: " + std::to_wstring(f->ieee.value()));
+        }
+        else
+        {
+            sb.append(L"UnknownConstant: ");
+        }
         sb.endline();
     }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
@@ -184,7 +198,6 @@ void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew&
     sb.append_decl(L"ParamVarDecl ");
     sb.append_type(paramDecl->type().name() + L" ");
     sb.append(paramDecl->name());
-    sb.endline(u8';');
 }
 
 void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb)

@@ -71,12 +71,7 @@ ASTConsumer::~ASTConsumer()
 void ASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
 {
     // Context.getTranslationUnitDecl()->dump();
-    constexpr auto ff = 0x1.2A05F2p54;
-    constexpr auto fff = ff - 19999999999.4215f;
-llvm::APFloat f(1.4215f);
-std::string str;
-str.resize('0', 16);
-auto p = f.convertToHexString(str.data(), str.size(), true, llvm::RoundingMode::Dynamic);
+
     DebugASTVisitor debug = {};
     debug.TraverseDecl(Context.getTranslationUnitDecl());
     TraverseDecl(Context.getTranslationUnitDecl());

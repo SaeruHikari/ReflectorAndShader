@@ -1,5 +1,7 @@
 #pragma once
+#include <variant>
 #include "Enums.hpp"
+#include "Constant.hpp"
 #include "Decl.hpp"
 #include "Stmt.hpp"
 
@@ -54,11 +56,12 @@ public:
 struct ConstantExpr : Expr
 {
 public:
-    const String v;
+    const std::variant<IntValue, FloatValue> value;
 
 private:
     friend struct AST;
-    ConstantExpr(const AST& ast, const String& v);
+    ConstantExpr(const AST& ast, const IntValue& v);
+    ConstantExpr(const AST& ast, const FloatValue& v);
 };
 
 struct InitListExpr : Expr

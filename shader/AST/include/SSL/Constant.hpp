@@ -22,14 +22,14 @@ public:
         const auto required_bitwidth = sizeof(I) * 8;
         const auto required_signed = std::is_signed_v<I>;
 
-        const ssl::Expected<bool> bitwidth_capable = 
-            (_signed && required_signed) ? _bitwidth >= required_bitwidth :
-            (_signed && !required_signed) ? _bitwidth >= required_bitwidth + 1 :
+        const bool bitwidth_capable = 
+            (_signed && required_signed) ? _bitwidth <= required_bitwidth :
+            (_signed && !required_signed) ? _bitwidth <= required_bitwidth + 1 :
 
-            (!_signed && !required_signed) ? _bitwidth >= required_bitwidth :
-            (!_signed && required_signed) ? ssl::createStringError("storage is unsigned but requires signed!") : false;
+            (!_signed && !required_signed) ? _bitwidth <= required_bitwidth :
+            (!_signed && required_signed) ? false : false;
 
-        if (bitwidth_capable.get())
+        if (!bitwidth_capable)
         {
             return ssl::createStringError("value is too large for the type");
         }
@@ -46,6 +46,8 @@ public:
         }
     }
 
+    const bool is_signed() const { return _signed; }
+
 private:
     std::aligned_storage<64, alignof(int64_t)> _storage;
     uint32_t _bitwidth = 32;
@@ -55,14 +57,17 @@ private:
 struct FloatValue
 {
 public:
+    FloatValue(const FloatValue& v);
     FloatValue(float v);
     FloatValue(double v);
     // support decimal & hexfloat: -123.45 or 0x10.1p0
-    FloatValue(std::wstring_view v);
+    FloatValue(std::string_view v);
+
+    const double_conversion::Double ieee;
 
 private:
-    double_conversion::Double _ieee;
     uint32_t _bitwidth = 32;
+    int32_t _processed_chars_count = 0;
 };
 
 } // namespace skr::SSL

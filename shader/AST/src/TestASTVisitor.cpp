@@ -106,7 +106,21 @@ skr::SSL::String ASTVisitor::visitExpr(const skr::SSL::Stmt* stmt)
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
     {
-        sb.append(constant->v);
+        if (auto i = std::get_if<IntValue>(&constant->value))
+        {
+            if (i->is_signed())
+                sb.append(std::to_wstring(i->value<int64_t>().get()));
+            else
+                sb.append(std::to_wstring(i->value<uint64_t>().get()));
+        }
+        else if (auto f = std::get_if<FloatValue>(&constant->value))
+        {
+            sb.append(std::to_wstring(f->ieee.value()));
+        }
+        else
+        {
+            sb.append(L"UnknownConstant: ");
+        }
     }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
     {

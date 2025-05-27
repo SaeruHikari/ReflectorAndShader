@@ -18,7 +18,14 @@ BinaryExpr* AST::Assign(Expr* left, Expr* right)
     return expr;
 }
 
-ConstantExpr* AST::Constant(const FloatSemantics& v) 
+ConstantExpr* AST::Constant(const IntValue& v) 
+{ 
+    auto expr = new ConstantExpr(*this, v); 
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+ConstantExpr* AST::Constant(const FloatValue& v) 
 { 
     auto expr = new ConstantExpr(*this, v); 
     _stmts.emplace_back(expr);
@@ -87,7 +94,7 @@ InitListExpr* AST::InitList(std::span<Expr*> exprs)
 
 ParamVarDecl* AST::DeclareParam(const TypeDecl* type, const Name& name)
 {
-    auto decl = new ParamVarDecl(*this, name, type);
+    auto decl = new ParamVarDecl(*this, type, name);
     _decls.emplace_back(decl);
     return decl;
 }

@@ -13,7 +13,7 @@ public:
     virtual String dump() const;
     virtual ~Decl() = default;
     virtual const Stmt* body() const = 0;
-    virtual const DeclRefExpr* ref() const;
+    virtual DeclRefExpr* ref() const;
 
 protected:
     Decl(const AST& ast);
@@ -81,18 +81,14 @@ struct ArrayTypeDecl : public TypeDecl
     ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count);
 };
 
-struct ParamVarDecl : public Decl
+struct ParamVarDecl : public VarDecl
 {
 public:
     const TypeDecl& type() const { return *_type; }
-    const Name& name() const;
-    const Stmt* body() const override;
 
     protected:
     friend struct AST;    
-    ParamVarDecl(const AST& ast, const Name& _name, const TypeDecl* type);
-    Name _name = L"__INVALID_MEMBER__";
-    const TypeDecl* _type = nullptr;
+    ParamVarDecl(const AST& ast, const TypeDecl* type, const Name& _name);
 };
 
 struct FunctionDecl : public Decl

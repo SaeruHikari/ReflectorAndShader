@@ -758,7 +758,7 @@ public:
       : HasError(false)
 #if !defined(NDEBUG)
         // Expected is unchecked upon construction in Debug builds.
-        , Unchecked(true)
+        , Unchecked(false)
 #endif
   {
     new (getStorage()) storage_type(std::forward<OtherT>(Val));
