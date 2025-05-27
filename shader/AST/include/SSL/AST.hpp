@@ -22,8 +22,10 @@ public:
     BinaryExpr* Add(Expr* left, Expr* right);
     BinaryExpr* Assign(Expr* left, Expr* right);
     CompoundStmt* Block(const std::vector<Stmt*>& statements);
+    CallExpr* Call(DeclRefExpr* callee, std::span<Expr*> args);
     ConstantExpr* Constant(const IntValue& v);
     ConstantExpr* Constant(const FloatValue& v);
+    ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     MemberExpr* Member(DeclRefExpr* base, const FieldDecl* field);
     DeclRefExpr* Ref(const Decl* decl);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
@@ -31,7 +33,7 @@ public:
     InitListExpr* InitList(std::span<Expr*> exprs);
 
     TypeDecl* const DeclareType(const Name& name, std::span<FieldDecl*> members);
-    TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4);
+    TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
     ArrayTypeDecl* const DeclareArrayType(TypeDecl* const element, uint32_t count);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);

@@ -10,13 +10,6 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     {
         sb.append_expr(L"InitListExpr ");
         sb.endline();
-        
-        sb.indent([&](){
-            for (auto expr : init->children())
-            {
-                visit(expr, sb);
-            }
-        });
     }
     else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
@@ -93,6 +86,17 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
             Visit(binary->right(), sb);
         });
     }
+    else if (auto callExpr = dynamic_cast<const CallExpr*>(stmt))
+    {
+        sb.append_expr(L"CallExpr");
+        sb.endline();
+    }
+    else if (auto constructExpr = dynamic_cast<const ConstructExpr*>(stmt))
+    {
+        sb.append_expr(L"ConstructExpr ");
+        sb.append_type(constructExpr->type()->name());
+        sb.endline();
+    }
     else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
     {
         sb.append_expr(L"DeclStmt ");
@@ -108,8 +112,16 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
     {
         sb.append_expr(L"DeclRefExpr ");
-        if (auto decl = dynamic_cast<const VarDecl*>(declRef->decl()))
-            sb.append(decl->name());
+        
+        if (auto var = dynamic_cast<const VarDecl*>(declRef->decl()))
+            sb.append(L"var " + var->name());
+        else if (auto func = dynamic_cast<const FunctionDecl*>(declRef->decl()))
+            sb.append(L"function " + func->name());
+        else if (auto type = dynamic_cast<const TypeDecl*>(declRef->decl()))
+            sb.append(L"type " + type->name());
+        else
+            sb.append(L"UnknownDecl");
+
         sb.endline();
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
@@ -151,15 +163,21 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     {
         sb.append_expr(L"CompoundStmt ");
         sb.endline();
-        
-        sb.indent([&](){
-            for (auto expr : block->children())
-            {
-                visit(expr, sb);
-                sb.endline();
-            }
-        });
     }
+    else
+    {
+        sb.append_expr(L"UnknownExpr ");
+        sb.endline();
+
+    }
+    
+    sb.indent([&](){
+        for (auto expr : stmt->children())
+        {
+            visit(expr, sb);
+            sb.endline();
+        }
+    });
 }
 
 void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
@@ -168,13 +186,13 @@ void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
     if (typeDecl->is_builtin())
     {
         sb.append_decl(L"BuiltinType ");
-        sb.append(typeDecl->name());
+        sb.append_type(typeDecl->name());
         sb.endline();
     }
     else
     {
         sb.append_decl(L"TypeDecl ");
-        sb.append(typeDecl->name());
+        sb.append_type(typeDecl->name());
         sb.endline();
         // sb.indent();
         for (auto field : typeDecl->fields())
@@ -190,6 +208,7 @@ void ASTDumper::visit(const skr::SSL::FieldDecl* fieldDecl, SourceBuilderNew& sb
     sb.append_decl(L"FieldDecl ");
     sb.append(fieldDecl->name());
     sb.append_type(L" '" + fieldDecl->type().name() + L"'");
+    sb.endline();
 }
 
 void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew& sb)
@@ -198,6 +217,7 @@ void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew&
     sb.append_decl(L"ParamVarDecl ");
     sb.append_type(paramDecl->type().name() + L" ");
     sb.append(paramDecl->name());
+    sb.endline();
 }
 
 void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb)
@@ -223,6 +243,7 @@ void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
     sb.append_decl(L"VarDecl ");
     sb.append(varDecl->name());
     sb.endline();
+    
     if (auto init = varDecl->initializer())
     {
         visit(init, sb);

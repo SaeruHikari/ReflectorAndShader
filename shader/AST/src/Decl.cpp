@@ -52,8 +52,8 @@ const Stmt* FieldDecl::body() const
     return nullptr;
 }
 
-TypeDecl::TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment, bool is_builtin)
-    : Decl(ast), _name(name), _is_builtin(is_builtin), _size(size), _alignment(alignment)
+TypeDecl::TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment, std::span<FieldDecl*> fields, bool is_builtin)
+    : Decl(ast), _name(name), _is_builtin(is_builtin), _size(size), _alignment(alignment), _fields(fields.begin(), fields.end())
 {
 
 }
@@ -75,8 +75,16 @@ const Stmt* TypeDecl::body() const
     return nullptr;
 }
 
+FieldDecl* TypeDecl::get_field(const Name& name) const
+{
+    auto found = std::find_if(_fields.begin(), _fields.end(), [&](const FieldDecl* field) { return field->name() == name; });
+    if (found != _fields.end())
+        return *found;
+    return nullptr;
+}
+
 ArrayTypeDecl::ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count)
-    : TypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), true)
+    : TypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true)
 {
 
 }

@@ -21,11 +21,9 @@ CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements)
     }
 }
 
-CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
+void CompoundStmt::add_statement(Stmt* statement)
 {
-    auto exp = new CompoundStmt(*this, statements);
-    _stmts.emplace_back(exp);
-    return exp;
+    _children.emplace_back(statement);
 }
 
 ValueStmt::ValueStmt(const AST& ast)

@@ -42,6 +42,9 @@ protected:
 
 struct CompoundStmt final : Stmt
 {
+public:
+    void add_statement(Stmt* statement);
+    
 protected:
     friend struct AST;
     CompoundStmt(const AST& ast, std::span<Stmt* const> statements);

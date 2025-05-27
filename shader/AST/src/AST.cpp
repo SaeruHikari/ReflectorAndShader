@@ -18,6 +18,20 @@ BinaryExpr* AST::Assign(Expr* left, Expr* right)
     return expr;
 }
 
+CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
+{
+    auto exp = new CompoundStmt(*this, statements);
+    _stmts.emplace_back(exp);
+    return exp;
+}
+
+CallExpr* AST::Call(DeclRefExpr* callee, std::span<Expr*> args)
+{
+    auto expr = new CallExpr(*this, callee, args);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
 ConstantExpr* AST::Constant(const IntValue& v) 
 { 
     auto expr = new ConstantExpr(*this, v); 
@@ -28,6 +42,13 @@ ConstantExpr* AST::Constant(const IntValue& v)
 ConstantExpr* AST::Constant(const FloatValue& v) 
 { 
     auto expr = new ConstantExpr(*this, v); 
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+ConstructExpr* AST::Construct(const TypeDecl* type, std::span<Expr*> args)
+{
+    auto expr = new ConstructExpr(*this, type, args);
     _stmts.emplace_back(expr);
     return expr;
 }
@@ -49,12 +70,12 @@ TypeDecl* const AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
     return new_type;
 }
 
-TypeDecl* const AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment)
+TypeDecl* const AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment, std::vector<FieldDecl*> fields)
 {
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
-    auto new_type = new TypeDecl(*this, name, size, alignment, true);
+    auto new_type = new TypeDecl(*this, name, size, alignment, fields, true);
     _types.emplace_back(new_type);
     return new_type;
 }
@@ -131,13 +152,21 @@ const TypeDecl* AST::GetType(const Name& name) const
     throw std::logic_error("Type not found");
 }
 
+template <typename... Args>
+std::vector<FieldDecl*> DeclareFields(AST* ast, const TypeDecl* type, Args&&... args)
+{
+    std::vector<FieldDecl*> fields;
+    (fields.emplace_back(ast->DeclareField(std::forward<Args>(args), type)), ...);
+    return fields;
+}
+
 #define USTR(x) L ## #x
 #define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclarePrimitiveType(USTR(name), sizeof(type), alignof(type)))
 
 #define INIT_VEC_TYPES(symbol, type, name) \
-    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>))), \
-    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>))), \
-    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>)))
+    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x"))), \
+    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
+    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z")))
 
 #define INIT_MATRIX_TYPE(symbol, type, name) \
     symbol##1x1Type(DeclarePrimitiveType(USTR(name##1x1), sizeof(matrix<type, 1, 1>), alignof(matrix<type, 1, 1>))), \

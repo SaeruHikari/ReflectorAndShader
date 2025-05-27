@@ -51,6 +51,13 @@ private:
 struct CallExpr : Expr
 {
 public:
+    const DeclRefExpr* callee() const { return _callee; }
+    std::span<Expr* const> args() const { return _args; }
+private:
+    friend struct AST;
+    CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args);
+    const DeclRefExpr* _callee = nullptr;
+    std::vector<Expr*> _args;
 };
 
 struct ConstantExpr : Expr
@@ -70,6 +77,19 @@ private:
     friend struct AST;
     InitListExpr(const AST& ast, std::span<Expr*> exprs);
     std::vector<Expr*> _exprs;
+};
+
+struct ConstructExpr : Expr
+{
+public:
+    const TypeDecl* type() const { return _type; }
+    std::span<Expr* const> args() const { return _args; }
+
+private:
+    friend struct AST;
+    ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Expr*> args);
+    const TypeDecl* _type = nullptr;
+    std::vector<Expr*> _args;
 };
 
 struct MemberExpr : Expr

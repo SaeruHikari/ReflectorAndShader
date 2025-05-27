@@ -84,7 +84,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* x)
     if (!x->isCompleteDefinition()) return true; // skip forward declares
     if (TST && !TST->hasDefinition()) return true; // skip no-def template specs
     if (IsIgnore(x)) return true; // skip ignored types
-
+    
     if (auto BuiltinAttr = IsBuiltin(x))
     {
         llvm::outs() << x->getName() << "\n";

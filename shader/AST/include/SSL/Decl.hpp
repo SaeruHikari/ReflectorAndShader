@@ -62,9 +62,11 @@ public:
     const auto& fields() const { return _fields; }
     const Stmt* body() const override;
 
+    FieldDecl* get_field(const Name& name) const;
+
 protected:
     friend struct AST;
-    TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, bool is_builtin = true);
+    TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
     TypeDecl(const AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
 
     Name _name = L"__INVALID_TYPE__";

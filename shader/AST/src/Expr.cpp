@@ -19,6 +19,14 @@ DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl)
 
 }
 
+CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
+    : Expr(ast), _callee(callee), _args(args.begin(), args.end()) 
+{
+    _children.emplace_back(callee);
+    for (auto arg : _args)
+        _children.emplace_back(arg);
+}
+
 ConstantExpr::ConstantExpr(const AST& ast, const IntValue& v) 
     : Expr(ast), value(v) 
 {
@@ -36,6 +44,13 @@ InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs)
 {
     for (auto expr : _exprs)
         _children.emplace_back(expr);
+}
+
+ConstructExpr::ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Expr*> args)
+    : Expr(ast), _type(type), _args(args.begin(), args.end())
+{
+    for (auto arg : _args)
+        _children.emplace_back(arg);
 }
 
 MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
