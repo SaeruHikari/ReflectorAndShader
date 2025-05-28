@@ -22,6 +22,18 @@ protected:
     Expr(const AST& ast);
 };
 
+struct BitwiseCastExpr : Expr
+{
+public:
+    const TypeDecl* type() const { return _type; }
+    Expr* expr() const { return _expr; }
+private:
+    friend struct AST;
+    BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    const TypeDecl* _type = nullptr;
+    Expr* _expr = nullptr;
+};
+
 struct BinaryExpr : Expr
 {
 public:
@@ -35,17 +47,6 @@ private:
     Expr* _left = nullptr;
     Expr* _right = nullptr;
     const BinaryOp _op = BinaryOp::ADD;
-};
-
-struct DeclRefExpr : Expr
-{
-public:
-    const Decl* decl() const { return _decl; }
-
-private:
-    friend struct AST;
-    DeclRefExpr(const AST& ast, const Decl& decl);
-    const Decl* _decl = nullptr;
 };
 
 struct CallExpr : Expr
@@ -71,14 +72,6 @@ private:
     ConstantExpr(const AST& ast, const FloatValue& v);
 };
 
-struct InitListExpr : Expr
-{
-private:
-    friend struct AST;
-    InitListExpr(const AST& ast, std::span<Expr*> exprs);
-    std::vector<Expr*> _exprs;
-};
-
 struct ConstructExpr : Expr
 {
 public:
@@ -92,6 +85,25 @@ private:
     std::vector<Expr*> _args;
 };
 
+struct DeclRefExpr : Expr
+{
+public:
+    const Decl* decl() const { return _decl; }
+
+private:
+    friend struct AST;
+    DeclRefExpr(const AST& ast, const Decl& decl);
+    const Decl* _decl = nullptr;
+};
+
+struct InitListExpr : Expr
+{
+private:
+    friend struct AST;
+    InitListExpr(const AST& ast, std::span<Expr*> exprs);
+    std::vector<Expr*> _exprs;
+};
+
 struct MemberExpr : Expr
 {
 public:
@@ -103,6 +115,18 @@ private:
     MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
     const DeclRefExpr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
+};
+
+struct StaticCastExpr : Expr
+{
+public:
+    const TypeDecl* type() const { return _type; }
+    Expr* expr() const { return _expr; }
+private:
+    friend struct AST;
+    StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    const TypeDecl* _type = nullptr;
+    Expr* _expr = nullptr;
 };
 
 } // namespace skr::SSL

@@ -16,7 +16,7 @@ int main()
     auto param = AST.DeclareParam(AST.Float4Type, L"param");
     auto param_ref = (Expr*)param->ref();
     std::vector<Expr*> inits = {
-        AST.Constant(FloatValue("0.f")),
+        AST.StaticCast(AST.FloatType, AST.Constant(FloatValue("0.f"))),
         AST.Constant(FloatValue("1.f")),
         AST.Constant(FloatValue("2.f")),
         AST.Constant(FloatValue("3.f"))

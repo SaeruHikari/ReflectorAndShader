@@ -4,20 +4,20 @@
 namespace skr::SSL 
 {
 
-BinaryExpr* AST::Add(Expr* left, Expr* right)
+BinaryExpr* AST::Binary(BinaryOp op, Expr* left, Expr* right)
 {
-    auto expr = new BinaryExpr(*this, left, right, BinaryOp::ADD);
-    _stmts.emplace_back(expr);
-    return expr;
-}
-    
-BinaryExpr* AST::Assign(Expr* left, Expr* right)
-{
-    auto expr = new BinaryExpr(*this, left, right, BinaryOp::ASSIGN);
+    auto expr = new BinaryExpr(*this, left, right, op);
     _stmts.emplace_back(expr);
     return expr;
 }
 
+BitwiseCastExpr* AST::BitwiseCast(const TypeDecl* type, Expr* expr)
+{
+    auto cast = new BitwiseCastExpr(*this, type, expr);
+    _stmts.emplace_back(cast);
+    return cast;
+}
+    
 CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
 {
     auto exp = new CompoundStmt(*this, statements);
@@ -125,6 +125,13 @@ DeclRefExpr* AST::Ref(const Decl* decl)
     auto expr = new DeclRefExpr(*this, *decl);
     _stmts.emplace_back(expr);
     return expr;
+}
+
+StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
+{
+    auto cast = new StaticCastExpr(*this, type, expr);
+    _stmts.emplace_back(cast);
+    return cast;
 }
 
 DeclStmt* AST::Variable(const TypeDecl* type, Expr* initializer) 

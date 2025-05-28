@@ -19,8 +19,8 @@ public:
     AST();
     ~AST();
 
-    BinaryExpr* Add(Expr* left, Expr* right);
-    BinaryExpr* Assign(Expr* left, Expr* right);
+    BinaryExpr* Binary(BinaryOp op, Expr* left, Expr* right);
+    BitwiseCastExpr* BitwiseCast(const TypeDecl* type, Expr* expr);
     CompoundStmt* Block(const std::vector<Stmt*>& statements);
     CallExpr* Call(DeclRefExpr* callee, std::span<Expr*> args);
     ConstantExpr* Constant(const IntValue& v);
@@ -28,6 +28,7 @@ public:
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     MemberExpr* Member(DeclRefExpr* base, const FieldDecl* field);
     DeclRefExpr* Ref(const Decl* decl);
+    StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     InitListExpr* InitList(std::span<Expr*> exprs);
@@ -38,6 +39,31 @@ public:
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(const TypeDecl* type, const Name& name);
+
+    inline BinaryExpr* Add(Expr* left, Expr* right) { return Binary(BinaryOp::ADD, left, right); }
+    inline BinaryExpr* Sub(Expr* left, Expr* right) { return Binary(BinaryOp::SUB, left, right); }
+    inline BinaryExpr* Mul(Expr* left, Expr* right) { return Binary(BinaryOp::MUL, left, right); }
+    inline BinaryExpr* Div(Expr* left, Expr* right) { return Binary(BinaryOp::DIV, left, right); }
+    inline BinaryExpr* Mod(Expr* left, Expr* right) { return Binary(BinaryOp::MOD, left, right); }
+    inline BinaryExpr* BitAnd(Expr* left, Expr* right) { return Binary(BinaryOp::BIT_AND, left, right); }
+    inline BinaryExpr* BitOr(Expr* left, Expr* right) { return Binary(BinaryOp::BIT_OR, left, right); }
+    inline BinaryExpr* BitXor(Expr* left, Expr* right) { return Binary(BinaryOp::BIT_XOR, left, right); }
+    inline BinaryExpr* Shl(Expr* left, Expr* right) { return Binary(BinaryOp::SHL, left, right); }
+    inline BinaryExpr* Shr(Expr* left, Expr* right) { return Binary(BinaryOp::SHR, left, right); }
+    inline BinaryExpr* And(Expr* left, Expr* right) { return Binary(BinaryOp::AND, left, right); }
+    inline BinaryExpr* Or(Expr* left, Expr* right) { return Binary(BinaryOp::OR, left, right); }
+    inline BinaryExpr* Less(Expr* left, Expr* right) { return Binary(BinaryOp::LESS, left, right); }
+    inline BinaryExpr* Greater(Expr* left, Expr* right) { return Binary(BinaryOp::GREATER, left, right); }
+    inline BinaryExpr* LessEqual(Expr* left, Expr* right) { return Binary(BinaryOp::LESS_EQUAL, left, right); }
+    inline BinaryExpr* GreaterEqual(Expr* left, Expr* right) { return Binary(BinaryOp::GREATER_EQUAL, left, right); }
+    inline BinaryExpr* Equal(Expr* left, Expr* right) { return Binary(BinaryOp::EQUAL, left, right); }
+    inline BinaryExpr* NotEqual(Expr* left, Expr* right) { return Binary(BinaryOp::NOT_EQUAL, left, right); }
+    inline BinaryExpr* Assign(Expr* left, Expr* right) { return Binary(BinaryOp::ASSIGN, left, right); }
+    inline BinaryExpr* AddAssign(Expr* left, Expr* right) { return Binary(BinaryOp::ADD_ASSIGN, left, right); }
+    inline BinaryExpr* SubAssign(Expr* left, Expr* right) { return Binary(BinaryOp::SUB_ASSIGN, left, right); }
+    inline BinaryExpr* MulAssign(Expr* left, Expr* right) { return Binary(BinaryOp::MUL_ASSIGN, left, right); }
+    inline BinaryExpr* DivAssign(Expr* left, Expr* right) { return Binary(BinaryOp::DIV_ASSIGN, left, right); }
+    inline BinaryExpr* ModAssign(Expr* left, Expr* right) { return Binary(BinaryOp::MOD_ASSIGN, left, right); }
 
     const TypeDecl* GetType(const Name& name) const;
 

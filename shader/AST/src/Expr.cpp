@@ -13,10 +13,10 @@ BinaryExpr::BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op)
     _children.emplace_back(right);
 }
 
-DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl) 
-    : Expr(ast), _decl(&decl) 
+BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+    : Expr(ast), _type(type), _expr(expr) 
 {
-
+    _children.emplace_back(expr);
 }
 
 CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
@@ -39,13 +39,6 @@ ConstantExpr::ConstantExpr(const AST& ast, const FloatValue& v)
     
 }
 
-InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 
-    : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
-{
-    for (auto expr : _exprs)
-        _children.emplace_back(expr);
-}
-
 ConstructExpr::ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Expr*> args)
     : Expr(ast), _type(type), _args(args.begin(), args.end())
 {
@@ -53,10 +46,29 @@ ConstructExpr::ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Exp
         _children.emplace_back(arg);
 }
 
+DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl) 
+    : Expr(ast), _decl(&decl) 
+{
+
+}
+
+InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 
+    : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
+{
+    for (auto expr : _exprs)
+        _children.emplace_back(expr);
+}
+
 MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
 
+}
+
+StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)
+    : Expr(ast), _type(type), _expr(expr)
+{
+    _children.emplace_back(expr);
 }
 
 } // namespace skr::SSL

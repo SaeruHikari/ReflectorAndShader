@@ -11,6 +11,11 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"InitListExpr ");
         sb.endline();
     }
+    else if (auto bitwiseCast = dynamic_cast<const BitwiseCastExpr*>(stmt))
+    {
+        sb.append_expr(L"BitwiseCastExpr ");
+        sb.endline();
+    }
     else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
         auto op = binary->op();
@@ -164,6 +169,11 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"CompoundStmt ");
         sb.endline();
     }
+    else if (auto staticCast = dynamic_cast<const StaticCastExpr*>(stmt))
+    {
+        sb.append_expr(L"StaticCastExpr ");
+        sb.endline();
+    }
     else
     {
         sb.append_expr(L"UnknownExpr ");
@@ -243,7 +253,7 @@ void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
     sb.append_decl(L"VarDecl ");
     sb.append(varDecl->name());
     sb.endline();
-    
+
     if (auto init = varDecl->initializer())
     {
         visit(init, sb);
