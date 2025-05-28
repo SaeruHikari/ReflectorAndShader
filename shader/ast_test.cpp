@@ -8,6 +8,10 @@
 void mandelbrot(skr::SSL::AST& AST)
 {
     using namespace skr::SSL;
+    std::vector<ParamVarDecl*> cos_params = { AST.DeclareParam(AST.Float3Type, L"v") };
+    auto cos_func = AST.DeclareFunction(L"cos", AST.Float3Type, cos_params, nullptr);
+
+    using namespace skr::SSL;
     auto tid = AST.DeclareParam(AST.UInt2Type, L"tid");
     auto tsize = AST.DeclareParam(AST.UInt2Type, L"tsize");
     std::vector<ParamVarDecl*> mandelbrot_params = { tid, tsize };
@@ -114,6 +118,14 @@ void mandelbrot(skr::SSL::AST& AST)
     mandelbrot_body->add_statement(g);
 
     // return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
+    auto temp0 = AST.Add(AST.Mul(f->ref(), t->ref()), g->ref());
+    Expr* temp1 = AST.Mul(AST.Mul(temp0, AST.Constant(FloatValue("2.f"))), AST.Constant(FloatValue("3.14159265358979323846f"))); // pi
+    auto temp2 = AST.CallFunction(cos_func->ref(), std::span<Expr*>(&temp1, 1));
+    auto temp3 = AST.Mul(e->ref(), temp2);
+    auto temp4 = AST.Add(d->ref(), temp3);
+    std::vector<Expr*> return_inits = { temp4, AST.Constant(FloatValue("1.0f")) };
+    auto return_value = AST.Construct(AST.Float4Type, return_inits);
+    mandelbrot_body->add_statement(AST.Return(return_value));
 }
 
 void some_test(skr::SSL::AST& AST)

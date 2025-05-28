@@ -200,6 +200,11 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"StaticCastExpr ");
         sb.endline();
     }
+    else if (auto returnStmt = dynamic_cast<const ReturnStmt*>(stmt))
+    {
+        sb.append_expr(L"ReturnStmt ");
+        sb.endline();
+    }
     else
     {
         sb.append_expr(L"UnknownExpr ");
@@ -269,7 +274,10 @@ void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& 
             visit(param, sb);
         }
         
-        visit(funcDecl->body(), sb);
+        if (auto body = funcDecl->body())
+        {
+            visit(body, sb);
+        }
     });
 }
 

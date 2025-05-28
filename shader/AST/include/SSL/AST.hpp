@@ -31,6 +31,7 @@ public:
     ImplicitCastExpr* ImplicitCast(const TypeDecl* type, Expr* expr);
     MethodExpr* Method(DeclRefExpr* base, const MethodDecl* method);
     DeclRefExpr* Ref(const Decl* decl);
+    ReturnStmt* Return(Expr* expr);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);

@@ -26,6 +26,12 @@ void CompoundStmt::add_statement(Stmt* statement)
     _children.emplace_back(statement);
 }
 
+ReturnStmt::ReturnStmt(const AST& ast, Stmt* value)
+    : Stmt(ast), _value(value)
+{
+    _children.emplace_back(value);
+}
+
 ValueStmt::ValueStmt(const AST& ast)
     : Stmt(ast)
 {

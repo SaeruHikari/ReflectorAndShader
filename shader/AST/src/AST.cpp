@@ -156,6 +156,13 @@ DeclRefExpr* AST::Ref(const Decl* decl)
     return expr;
 }
 
+ReturnStmt* AST::Return(Expr* expr)
+{
+    auto stmt = new ReturnStmt(*this, expr);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
 StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
 {
     auto cast = new StaticCastExpr(*this, type, expr);

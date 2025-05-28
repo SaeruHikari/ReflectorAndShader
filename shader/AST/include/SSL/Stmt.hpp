@@ -50,6 +50,16 @@ protected:
     CompoundStmt(const AST& ast, std::span<Stmt* const> statements);
 };
 
+struct ReturnStmt final : Stmt
+{
+public:
+    const Stmt* value() const { return _value; }
+protected:
+    friend struct AST;
+    ReturnStmt(const AST& ast, Stmt* value);
+    Stmt* _value = nullptr;
+};
+
 struct ValueStmt : public Stmt
 {
     virtual ~ValueStmt() = default;
