@@ -22,16 +22,23 @@ protected:
     Expr(const AST& ast);
 };
 
-struct BitwiseCastExpr : Expr
+struct CastExpr : Expr
 {
 public:
     const TypeDecl* type() const { return _type; }
     Expr* expr() const { return _expr; }
+
+protected:
+    CastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    const TypeDecl* _type = nullptr;
+    Expr* _expr = nullptr;
+};
+
+struct BitwiseCastExpr : CastExpr
+{
 private:
     friend struct AST;
     BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
-    const TypeDecl* _type = nullptr;
-    Expr* _expr = nullptr;
 };
 
 struct BinaryExpr : Expr
@@ -96,6 +103,13 @@ private:
     const Decl* _decl = nullptr;
 };
 
+struct ImplicitCastExpr : CastExpr
+{
+private:
+    friend struct AST;
+    ImplicitCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+};
+
 struct InitListExpr : Expr
 {
 private:
@@ -111,7 +125,6 @@ public:
     const Decl* member_decl() const { return _member_decl; }
 
 protected:
-    friend struct AST;
     MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field);
     const DeclRefExpr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
@@ -152,13 +165,20 @@ private:
 
 struct StaticCastExpr : Expr
 {
-public:
-    const TypeDecl* type() const { return _type; }
-    Expr* expr() const { return _expr; }
 private:
     friend struct AST;
     StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
-    const TypeDecl* _type = nullptr;
+};
+
+struct UnaryExpr : Expr
+{
+public:
+    const UnaryOp op() const { return _op; }
+    const Expr* expr() const { return _expr; }
+private:
+    friend struct AST;
+    UnaryExpr(const AST& ast, UnaryOp op, Expr* expr);
+    const UnaryOp _op = UnaryOp::PLUS;
     Expr* _expr = nullptr;
 };
 

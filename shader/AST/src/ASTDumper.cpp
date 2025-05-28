@@ -16,6 +16,37 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"BitwiseCastExpr ");
         sb.endline();
     }
+    else if (auto unary = dynamic_cast<const UnaryExpr*>(stmt))
+    {
+        auto op = unary->op();
+        String op_name = L"";
+        switch (op)
+        {
+        case UnaryOp::PLUS:
+            op_name = L" + ";
+            break;
+        case UnaryOp::MINUS:
+            op_name = L" - ";
+            break;
+        case UnaryOp::NOT:
+            op_name = L" ! ";
+            break;
+        case UnaryOp::BIT_NOT:
+            op_name = L" ~ ";
+            break;
+        default:
+            assert(false && "Unsupported unary operation");
+        }
+
+        sb.append_expr(L"UnaryExpr ");
+        sb.append(op_name);
+        sb.endline();
+    }
+    else if (auto implicitCast = dynamic_cast<const ImplicitCastExpr*>(stmt))
+    {
+        sb.append_expr(L"ImplicitCastExpr ");
+        sb.endline();
+    }
     else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
         auto op = binary->op();
@@ -85,11 +116,6 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"BinaryExpr ");
         sb.append(op_name);
         sb.endline();
-        
-        sb.indent([&](){
-            visit(binary->left(), sb);
-            Visit(binary->right(), sb);
-        });
     }
     else if (auto callExpr = dynamic_cast<const CallExpr*>(stmt))
     {
@@ -163,11 +189,6 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
             sb.append(_as_field->name());
         }
         sb.endline();
-
-        sb.indent([&](){
-            auto owner = member->owner();
-            visit(owner, sb);
-        });
     }
     else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
     {

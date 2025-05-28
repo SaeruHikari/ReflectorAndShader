@@ -67,6 +67,13 @@ FieldExpr* AST::Field(DeclRefExpr* base, const FieldDecl* field)
     return expr;
 }
 
+ImplicitCastExpr* AST::ImplicitCast(const TypeDecl* type, Expr* expr)
+{
+    auto cast = new ImplicitCastExpr(*this, type, expr);
+    _stmts.emplace_back(cast);
+    return cast;
+}
+
 MethodExpr* AST::Method(DeclRefExpr* base, const MethodDecl* method)
 {
     auto expr = new MethodExpr(*this, base, method);
@@ -156,6 +163,13 @@ StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
     return cast;
 }
 
+UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
+{
+    auto unary = new UnaryExpr(*this, op, expr);
+    _stmts.emplace_back(unary);
+    return unary;
+}
+
 DeclStmt* AST::Variable(const TypeDecl* type, Expr* initializer) 
 {  
     auto decl_name = L"decl" + std::to_wstring(_decls.size());
@@ -193,9 +207,9 @@ std::vector<FieldDecl*> DeclareFields(AST* ast, const TypeDecl* type, Args&&... 
 #define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclarePrimitiveType(USTR(name), sizeof(type), alignof(type)))
 
 #define INIT_VEC_TYPES(symbol, type, name) \
-    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x"))), \
-    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
-    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z")))
+    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
+    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y", L"z"))), \
+    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z", L"w")))
 
 #define INIT_MATRIX_TYPE(symbol, type, name) \
     symbol##1x1Type(DeclarePrimitiveType(USTR(name##1x1), sizeof(matrix<type, 1, 1>), alignof(matrix<type, 1, 1>))), \

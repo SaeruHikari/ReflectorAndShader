@@ -28,9 +28,11 @@ public:
     ConstantExpr* Constant(const FloatValue& v);
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     FieldExpr* Field(DeclRefExpr* base, const FieldDecl* field);
+    ImplicitCastExpr* ImplicitCast(const TypeDecl* type, Expr* expr);
     MethodExpr* Method(DeclRefExpr* base, const MethodDecl* method);
     DeclRefExpr* Ref(const Decl* decl);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
+    UnaryExpr* Unary(UnaryOp op, Expr* expr);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     InitListExpr* InitList(std::span<Expr*> exprs);

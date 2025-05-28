@@ -13,10 +13,16 @@ BinaryExpr::BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op)
     _children.emplace_back(right);
 }
 
-BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+CastExpr::CastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
     : Expr(ast), _type(type), _expr(expr) 
 {
     _children.emplace_back(expr);
+}
+
+BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+    : CastExpr(ast, type, expr)
+{
+
 }
 
 CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
@@ -52,6 +58,12 @@ DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl)
 
 }
 
+ImplicitCastExpr::ImplicitCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+    : CastExpr(ast, type, expr) 
+{
+
+}
+
 InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 
     : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
 {
@@ -62,7 +74,7 @@ InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs)
 MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
-
+    _children.emplace_back(_owner);
 }
 
 FieldExpr::FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
@@ -86,7 +98,13 @@ MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::sp
 }
 
 StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)
-    : Expr(ast), _type(type), _expr(expr)
+    : Expr(ast)
+{
+
+}
+
+UnaryExpr::UnaryExpr(const AST& ast, UnaryOp op, Expr* expr)
+    : Expr(ast), _op(op), _expr(expr)
 {
     _children.emplace_back(expr);
 }

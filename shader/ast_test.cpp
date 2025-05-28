@@ -5,10 +5,120 @@
 #include "SSL/AST.hpp"
 #include "SSL/TestASTVisitor.hpp"
 
-int main()
+void mandelbrot(skr::SSL::AST& AST)
 {
     using namespace skr::SSL;
-    AST AST = {};
+    auto tid = AST.DeclareParam(AST.UInt2Type, L"tid");
+    auto tsize = AST.DeclareParam(AST.UInt2Type, L"tsize");
+    std::vector<ParamVarDecl*> mandelbrot_params = { tid, tsize };
+    auto mandelbrot_body = AST.Block({});
+    auto mandelbrot = AST.DeclareFunction(L"mandelbrot", AST.Float4Type, mandelbrot_params, mandelbrot_body);
+    
+    // const float x = float(tid.x) / (float)tsize.x;
+    auto x = AST.Variable(AST.FloatType, L"x", 
+        AST.Div(
+            AST.Field(tid->ref(), AST.UInt2Type->get_field(L"x")), 
+            AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x"))
+        ));
+    mandelbrot_body->add_statement(x);
+    
+    // const float y = float(tid.y) / (float)tsize.y;
+    auto y = AST.Variable(AST.FloatType, L"y",
+        AST.Div(
+            AST.Field(tid->ref(), AST.UInt2Type->get_field(L"y")), 
+            AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"y"))
+        ));
+    mandelbrot_body->add_statement(y);
+
+    // const float2 uv = float2(x, y);
+    std::vector<Expr*> uv_inits = { x->ref(), y->ref() }; 
+    auto uv = AST.Variable(AST.Float2Type, L"uv", AST.Construct(AST.Float2Type, uv_inits));
+    mandelbrot_body->add_statement(uv);
+
+    // float n = 0.0f;
+    auto n = AST.Variable(AST.FloatType, L"n", AST.Constant(FloatValue("0.0f")));
+    mandelbrot_body->add_statement(n);
+
+    // float2 c = float2(-0.444999992847442626953125f, 0.0f);
+    std::vector<Expr*> c_inits = {
+        AST.Constant(FloatValue("-0.444999992847442626953125f")),
+        AST.Constant(FloatValue("0.0f"))
+    };
+    auto c = AST.Variable(AST.Float2Type, L"c", AST.Construct(AST.Float2Type, c_inits));
+    mandelbrot_body->add_statement(c);
+
+    // c = c + (uv - float2(0.5f, 0.5f)) * 2.3399999141693115234375f;
+    auto vec_05_05_init = std::vector<Expr*>{ 
+        AST.Constant(FloatValue("0.5f")), 
+        AST.Constant(FloatValue("0.5f")) 
+    };
+    auto modify_c = AST.Assign(c->ref(), 
+    AST.Add(c->ref(), AST.Mul(
+        AST.Sub(uv->ref(), AST.Construct(AST.Float2Type, vec_05_05_init)), 
+        AST.Constant(FloatValue("2.3399999141693115234375f"))
+    )));
+    mandelbrot_body->add_statement(modify_c);
+
+    // float2 z = float2(0.f, 0.f);
+    std::vector<Expr*> z_inits = {
+        AST.Constant(FloatValue("0.f")),
+        AST.Constant(FloatValue("0.f"))
+    };
+    auto z = AST.Variable(AST.Float2Type, L"z", AST.InitList(z_inits));
+    mandelbrot_body->add_statement(z);
+
+    // const int M = 128;
+    auto M = AST.Variable(AST.IntType, L"M", AST.Constant(IntValue(128)));
+    mandelbrot_body->add_statement(M);
+
+    // TODO: FOR LOOP
+
+    // const float t = float(n) / float(M);
+    auto t = AST.Variable(AST.FloatType, L"t", AST.Div(n->ref(), AST.StaticCast(AST.FloatType, M->ref())));
+    mandelbrot_body->add_statement(t);
+
+    // const float3 d = float3(0.3f, 0.3f, 0.5f);
+    std::vector<Expr*> d_inits = {
+        AST.Constant(FloatValue("0.3f")),
+        AST.Constant(FloatValue("0.3f")),
+        AST.Constant(FloatValue("0.5f"))
+    };
+    auto d = AST.Variable(AST.Float3Type, L"d", AST.Construct(AST.Float3Type, d_inits));
+    mandelbrot_body->add_statement(d);
+    
+    // const float3 e = float3(-0.2f, -0.3f, -0.5f);
+    std::vector<Expr*> e_inits = {
+        AST.Constant(FloatValue("-0.2f")),
+        AST.Constant(FloatValue("-0.3f")),
+        AST.Constant(FloatValue("-0.5f"))
+    };
+    auto e = AST.Variable(AST.Float3Type, L"e", AST.Construct(AST.Float3Type, e_inits));
+    mandelbrot_body->add_statement(e);
+
+    // const float3 f = float3(2.1f, 2.0f, 3.0f);
+    std::vector<Expr*> f_inits = {
+        AST.Constant(FloatValue("2.1f")),
+        AST.Constant(FloatValue("2.0f")),
+        AST.Constant(FloatValue("3.0f"))
+    };
+    auto f = AST.Variable(AST.Float3Type, L"f", AST.Construct(AST.Float3Type, f_inits));
+    mandelbrot_body->add_statement(f);
+
+    // const float3 g = float3(0.0f, 0.1f, 0.0f);
+    std::vector<Expr*> g_inits = {
+        AST.Constant(FloatValue("0.0f")),
+        AST.Constant(FloatValue("0.1f")),
+        AST.Constant(FloatValue("0.0f"))
+    };
+    auto g = AST.Variable(AST.Float3Type, L"g", AST.Construct(AST.Float3Type, g_inits));
+    mandelbrot_body->add_statement(g);
+
+    // return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
+}
+
+void some_test(skr::SSL::AST& AST)
+{
+    using namespace skr::SSL;
     auto fields = std::vector<FieldDecl*>();
     fields.emplace_back(AST.DeclareField(L"i", AST.IntType));
     auto DataType = AST.DeclareType(L"Data", fields);
@@ -19,9 +129,9 @@ int main()
     auto param_ref = (Expr*)param->ref();
     std::vector<Expr*> inits = {
         AST.StaticCast(AST.FloatType, AST.Constant(FloatValue("0.f"))),
-        AST.Constant(FloatValue("1.f")),
-        AST.Constant(FloatValue("2.f")),
-        AST.Constant(FloatValue("3.f"))
+        AST.ImplicitCast(AST.FloatType, AST.Constant(FloatValue("1.f"))),
+        AST.BitwiseCast(AST.FloatType, AST.Constant(FloatValue("2.f"))),
+        AST.Unary(UnaryOp::PLUS, AST.Constant(FloatValue("3.f")))
     };
     auto a = AST.Variable(AST.Float4Type, L"a", AST.InitList(inits));
     auto b = AST.Variable(AST.FloatType, L"b");
@@ -46,6 +156,15 @@ int main()
     Expr* construct = AST.Construct(AST.Float4Type, inits);
     block->add_statement(AST.CallMethod(AST.Method(data->ref(), Method), {}));
     block->add_statement(AST.CallFunction(func->ref(), std::span<Expr*>(&construct, 1)));
+}
+
+int main()
+{
+    using namespace skr::SSL;
+    AST AST = {};
+
+    // some_test(AST);
+    mandelbrot(AST);
 
     ASTVisitor visitor = {};
     String content = L"";

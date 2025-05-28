@@ -4,6 +4,13 @@
 
 namespace skr::SSL {
 
+enum class UnaryOp : uint32_t {
+    PLUS,   // +x
+    MINUS,  // -x
+    NOT,    // !x
+    BIT_NOT,// ~x
+};
+
 enum class BinaryOp : uint32_t {
 
     // arithmetic
