@@ -133,7 +133,7 @@ protected:
 struct FieldExpr : MemberExpr
 {
 public:
-    const FieldDecl* field_decl() const { return dynamic_cast<const FieldDecl*>(_member_decl); }
+    const FieldDecl* field_decl() const;
 
 private:
     friend struct AST;
@@ -143,7 +143,7 @@ private:
 struct MethodExpr : MemberExpr
 {
 public:
-    const FunctionDecl* method_decl() const { return dynamic_cast<const FunctionDecl*>(_member_decl); }
+    const MethodDecl* method_decl() const;
     
 private:
     friend struct AST;

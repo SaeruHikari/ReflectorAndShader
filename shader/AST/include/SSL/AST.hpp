@@ -21,22 +21,30 @@ public:
 
     BinaryExpr* Binary(BinaryOp op, Expr* left, Expr* right);
     BitwiseCastExpr* BitwiseCast(const TypeDecl* type, Expr* expr);
+    BreakStmt* Break();
     CompoundStmt* Block(const std::vector<Stmt*>& statements);
     CallExpr* CallFunction(DeclRefExpr* callee, std::span<Expr*> args);
+    CaseStmt* Case(Expr* cond, CompoundStmt* body);
     MethodCallExpr* CallMethod(MemberExpr* callee, std::span<Expr*> args);
     ConstantExpr* Constant(const IntValue& v);
     ConstantExpr* Constant(const FloatValue& v);
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
+    ContinueStmt* Continue();
+    DefaultStmt* Default();
     FieldExpr* Field(DeclRefExpr* base, const FieldDecl* field);
+    ForStmt* For(Stmt* init, Expr* cond, Stmt* inc, CompoundStmt* body);
+    IfStmt* If(Expr* cond, CompoundStmt* then_body, CompoundStmt* else_body = nullptr);
+    InitListExpr* InitList(std::span<Expr*> exprs);
     ImplicitCastExpr* ImplicitCast(const TypeDecl* type, Expr* expr);
     MethodExpr* Method(DeclRefExpr* base, const MethodDecl* method);
     DeclRefExpr* Ref(const Decl* decl);
     ReturnStmt* Return(Expr* expr);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
+    SwitchStmt* Switch(Expr* cond, std::span<CaseStmt*> cases);
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
-    InitListExpr* InitList(std::span<Expr*> exprs);
+    WhileStmt* While(Expr* cond, CompoundStmt* body);
 
     TypeDecl* const DeclareType(const Name& name, std::span<FieldDecl*> members);
     TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});

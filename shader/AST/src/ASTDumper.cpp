@@ -6,48 +6,7 @@ namespace skr::SSL {
 void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    if (auto init = dynamic_cast<const InitListExpr*>(stmt))
-    {
-        sb.append_expr(L"InitListExpr ");
-        sb.endline();
-    }
-    else if (auto bitwiseCast = dynamic_cast<const BitwiseCastExpr*>(stmt))
-    {
-        sb.append_expr(L"BitwiseCastExpr ");
-        sb.endline();
-    }
-    else if (auto unary = dynamic_cast<const UnaryExpr*>(stmt))
-    {
-        auto op = unary->op();
-        String op_name = L"";
-        switch (op)
-        {
-        case UnaryOp::PLUS:
-            op_name = L" + ";
-            break;
-        case UnaryOp::MINUS:
-            op_name = L" - ";
-            break;
-        case UnaryOp::NOT:
-            op_name = L" ! ";
-            break;
-        case UnaryOp::BIT_NOT:
-            op_name = L" ~ ";
-            break;
-        default:
-            assert(false && "Unsupported unary operation");
-        }
-
-        sb.append_expr(L"UnaryExpr ");
-        sb.append(op_name);
-        sb.endline();
-    }
-    else if (auto implicitCast = dynamic_cast<const ImplicitCastExpr*>(stmt))
-    {
-        sb.append_expr(L"ImplicitCastExpr ");
-        sb.endline();
-    }
-    else if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
+    if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
         auto op = binary->op();
         String op_name = L"";
@@ -91,6 +50,25 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
             op_name = L" || ";
             break;
 
+        case BinaryOp::LESS:
+            op_name = L" < ";
+            break;
+        case BinaryOp::GREATER:
+            op_name = L" > ";
+            break;
+        case BinaryOp::LESS_EQUAL:
+            op_name = L" <= ";
+            break;
+        case BinaryOp::GREATER_EQUAL:
+            op_name = L" >= ";
+            break;
+        case BinaryOp::EQUAL:
+            op_name = L" == ";
+            break;
+        case BinaryOp::NOT_EQUAL:
+            op_name = L" != ";
+            break;
+
         case BinaryOp::ASSIGN:
             op_name = L" = ";
             break;
@@ -117,47 +95,34 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append(op_name);
         sb.endline();
     }
+    else if (auto bitwiseCast = dynamic_cast<const BitwiseCastExpr*>(stmt))
+    {
+        sb.append_expr(L"BitwiseCastExpr ");
+        sb.endline();
+    }
+    else if (auto breakStmt = dynamic_cast<const BreakStmt*>(stmt))
+    {
+        sb.append_expr(L"BreakStmt ");
+        sb.endline();
+    }
+    else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
+    {
+        sb.append_expr(L"CompoundStmt ");
+        sb.endline();
+    }
     else if (auto callExpr = dynamic_cast<const CallExpr*>(stmt))
     {
         sb.append_expr(L"CallExpr ");
         sb.endline();
     }
+    else if (auto caseStmt = dynamic_cast<const CaseStmt*>(stmt))
+    {
+        sb.append_expr(L"CaseStmt ");
+        sb.endline();
+    }
     else if (auto methodCall = dynamic_cast<const MethodCallExpr*>(stmt))
     {
         sb.append_expr(L"MethodCallExpr ");
-        sb.endline();
-    }
-    else if (auto constructExpr = dynamic_cast<const ConstructExpr*>(stmt))
-    {
-        sb.append_expr(L"ConstructExpr ");
-        sb.append_type(constructExpr->type()->name());
-        sb.endline();
-    }
-    else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
-    {
-        sb.append_expr(L"DeclStmt ");
-        sb.endline();
-        
-        sb.indent([&](){
-            if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
-            {
-                visit(decl, sb);
-            }
-        });
-    }
-    else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
-    {
-        sb.append_expr(L"DeclRefExpr ");
-        
-        if (auto var = dynamic_cast<const VarDecl*>(declRef->decl()))
-            sb.append(L"var " + var->name());
-        else if (auto func = dynamic_cast<const FunctionDecl*>(declRef->decl()))
-            sb.append(L"function " + func->name());
-        else if (auto type = dynamic_cast<const TypeDecl*>(declRef->decl()))
-            sb.append(L"type " + type->name());
-        else
-            sb.append(L"UnknownDecl");
-
         sb.endline();
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
@@ -180,6 +145,22 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         }
         sb.endline();
     }
+    else if (auto constructExpr = dynamic_cast<const ConstructExpr*>(stmt))
+    {
+        sb.append_expr(L"ConstructExpr ");
+        sb.append_type(constructExpr->type()->name());
+        sb.endline();
+    }
+    else if (auto continueExpr = dynamic_cast<const ContinueStmt*>(stmt))
+    {
+        sb.append_expr(L"ContinueStmt ");
+        sb.endline();
+    }
+    else if (auto defaultStmt = dynamic_cast<const DefaultStmt*>(stmt))
+    {
+        sb.append_expr(L"DefaultStmt ");
+        sb.endline();
+    }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
     {
         sb.append_expr(L"MemberExpr ");
@@ -188,11 +169,54 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         {
             sb.append(_as_field->name());
         }
+        else if (auto _as_method = dynamic_cast<const MethodDecl*>(field))
+        {
+            sb.append(_as_method->name());
+        }
+        else
+        {
+            sb.append(L"UnknownMember");
+        }
         sb.endline();
     }
-    else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
+    else if (auto forStmt = dynamic_cast<const ForStmt*>(stmt))
     {
-        sb.append_expr(L"CompoundStmt ");
+        sb.append_expr(L"ForStmt ");
+        sb.endline();
+    }
+    else if (auto ifStmt = dynamic_cast<const IfStmt*>(stmt))
+    {
+        sb.append_expr(L"IfStmt ");
+        sb.endline();
+    }
+    else if (auto initList = dynamic_cast<const InitListExpr*>(stmt))
+    {
+        sb.append_expr(L"InitListExpr ");
+        sb.endline();
+    }
+    else if (auto implicitCast = dynamic_cast<const ImplicitCastExpr*>(stmt))
+    {
+        sb.append_expr(L"ImplicitCastExpr ");
+        sb.endline();
+    }
+    else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
+    {
+        sb.append_expr(L"DeclRefExpr ");
+        
+        if (auto var = dynamic_cast<const VarDecl*>(declRef->decl()))
+            sb.append(L"var " + var->name());
+        else if (auto func = dynamic_cast<const FunctionDecl*>(declRef->decl()))
+            sb.append(L"function " + func->name());
+        else if (auto type = dynamic_cast<const TypeDecl*>(declRef->decl()))
+            sb.append(L"type " + type->name());
+        else
+            sb.append(L"UnknownDecl");
+
+        sb.endline();
+    }
+    else if (auto returnStmt = dynamic_cast<const ReturnStmt*>(stmt))
+    {
+        sb.append_expr(L"ReturnStmt ");
         sb.endline();
     }
     else if (auto staticCast = dynamic_cast<const StaticCastExpr*>(stmt))
@@ -200,9 +224,61 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"StaticCastExpr ");
         sb.endline();
     }
-    else if (auto returnStmt = dynamic_cast<const ReturnStmt*>(stmt))
+    else if (auto switchStmt = dynamic_cast<const SwitchStmt*>(stmt))
     {
-        sb.append_expr(L"ReturnStmt ");
+        sb.append_expr(L"SwitchStmt ");
+        sb.endline();
+    }
+    else if (auto unary = dynamic_cast<const UnaryExpr*>(stmt))
+    {
+        auto op = unary->op();
+        String op_name = L"";
+        switch (op)
+        {
+        case UnaryOp::PLUS:
+            op_name = L" + ";
+            break;
+        case UnaryOp::MINUS:
+            op_name = L" - ";
+            break;
+        case UnaryOp::NOT:
+            op_name = L" ! ";
+            break;
+        case UnaryOp::BIT_NOT:
+            op_name = L" ~ ";
+            break;
+        default:
+            assert(false && "Unsupported unary operation");
+        }
+
+        sb.append_expr(L"UnaryExpr ");
+        sb.append(op_name);
+        sb.endline();
+    }
+    else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
+    {
+        sb.append_expr(L"DeclStmt ");
+        sb.endline();
+        
+        sb.indent([&](){
+            if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
+            {
+                visit(decl, sb);
+            }
+            else if (auto decl = dynamic_cast<const FunctionDecl*>(declStmt->decl()))
+            {
+                visit(decl, sb);
+            }
+            else
+            {
+                sb.append_expr(L"UnknownDecl ");
+                sb.endline();
+            }
+        });
+    }
+    else if (auto whileStmt = dynamic_cast<const WhileStmt*>(stmt))
+    {
+        sb.append_expr(L"WhileStmt ");
         sb.endline();
     }
     else
@@ -235,11 +311,17 @@ void ASTDumper::visit(const skr::SSL::TypeDecl* typeDecl, SourceBuilderNew& sb)
         sb.append_decl(L"TypeDecl ");
         sb.append_type(typeDecl->name());
         sb.endline();
-        // sb.indent();
-        for (auto field : typeDecl->fields())
-        {
-            visit(field, sb);
-        }
+        
+        sb.indent([&](){
+            for (auto field : typeDecl->fields())
+            {
+                visit(field, sb);
+            }
+            for (auto method : typeDecl->methods())
+            {
+                visit(method, sb);
+            }
+        });
     }
 }
 
@@ -264,7 +346,9 @@ void ASTDumper::visit(const skr::SSL::ParamVarDecl* paramDecl, SourceBuilderNew&
 void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_decl(L"FunctionDecl ");
+    auto as_method = dynamic_cast<const MethodDecl*>(funcDecl);
+
+    sb.append_decl(as_method ? L"MethodDecl " : L"FunctionDecl ");
     sb.append(funcDecl->name());
     sb.endline();
     

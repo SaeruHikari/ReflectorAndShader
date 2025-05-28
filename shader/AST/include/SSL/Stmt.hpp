@@ -12,6 +12,7 @@ using Name = String;
 struct AST;
 struct Decl;
 struct DeclRefExpr;
+struct CaseStmt;
 
 struct Stmt
 {
@@ -48,6 +49,98 @@ public:
 protected:
     friend struct AST;
     CompoundStmt(const AST& ast, std::span<Stmt* const> statements);
+};
+
+struct IfStmt final : Stmt
+{
+public:
+    const Stmt* cond() const { return _cond; }
+    const CompoundStmt* then_body() const { return _then_body; }
+    const CompoundStmt* else_body() const { return _else_body; }
+
+private:
+    friend struct AST;
+    IfStmt(const AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body);
+    Stmt* _cond = nullptr;
+    CompoundStmt* _then_body = nullptr;
+    CompoundStmt* _else_body = nullptr;
+};
+
+struct ForStmt final : Stmt
+{
+public:
+    const Stmt* init() const { return _init; }
+    const Stmt* cond() const { return _cond; }
+    const Stmt* inc() const { return _inc; }
+    const CompoundStmt* body() const { return _body; }
+
+private:
+    friend struct AST;
+    ForStmt(const AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body);
+    Stmt* _init = nullptr;
+    Stmt* _cond = nullptr;
+    Stmt* _inc = nullptr;
+    CompoundStmt* _body = nullptr;
+};
+
+struct WhileStmt final : Stmt
+{
+public:
+    const Stmt* cond() const { return _cond; }
+    const CompoundStmt* body() const { return _body; }
+
+private:
+    friend struct AST;
+    WhileStmt(const AST& ast, Stmt* cond, CompoundStmt* body);
+    Stmt* _cond = nullptr;
+    CompoundStmt* _body = nullptr;
+};
+
+struct BreakStmt final : Stmt
+{
+private:
+    friend struct AST;
+    BreakStmt(const AST& ast);
+};
+
+struct ContinueStmt final : Stmt
+{
+private:
+    friend struct AST;
+    ContinueStmt(const AST& ast);
+};
+
+struct DefaultStmt final : Stmt
+{
+private:
+    friend struct AST;
+    DefaultStmt(const AST& ast);
+};
+
+struct SwitchStmt final : Stmt
+{
+public:
+    const Stmt* cond() const { return _cond; }
+    std::span<CaseStmt* const> cases() const { return _cases; }
+
+private:
+    friend struct AST;
+    SwitchStmt(const AST& ast, Stmt* cond, std::span<CaseStmt*> cases);
+    Stmt* _cond = nullptr;
+    std::vector<CaseStmt*> _cases;
+};
+
+struct CaseStmt final : Stmt
+{
+public:
+    const Stmt* cond() const { return _cond; }
+    const Stmt* body() const { return _body; }
+
+private:
+    friend struct AST;
+    CaseStmt(const AST& ast, Stmt* cond, Stmt* body);
+    Stmt* _cond = nullptr;
+    Stmt* _body = nullptr;
 };
 
 struct ReturnStmt final : Stmt

@@ -10,6 +10,8 @@ void mandelbrot(skr::SSL::AST& AST)
     using namespace skr::SSL;
     std::vector<ParamVarDecl*> cos_params = { AST.DeclareParam(AST.Float3Type, L"v") };
     auto cos_func = AST.DeclareFunction(L"cos", AST.Float3Type, cos_params, nullptr);
+    std::vector<ParamVarDecl*> dot_params = { AST.DeclareParam(AST.Float2Type, L"a"), AST.DeclareParam(AST.Float2Type, L"b") };
+    auto dot_func = AST.DeclareFunction(L"dot", AST.FloatType, dot_params, nullptr);
 
     using namespace skr::SSL;
     auto tid = AST.DeclareParam(AST.UInt2Type, L"tid");
@@ -76,6 +78,47 @@ void mandelbrot(skr::SSL::AST& AST)
     mandelbrot_body->add_statement(M);
 
     // TODO: FOR LOOP
+    /*
+        for (int i = 0; i < M; i++) {
+            z = float2((z.x * z.x) - (z.y * z.y), (2.0f * z.x) * z.y) + c;
+            if (dot(z, z) > 2.0f) {
+                break;
+            }
+            n += 1.0f;
+        }
+    */
+    auto for_init = AST.Variable(AST.IntType, L"i", AST.Constant(IntValue(0)));
+    auto for_cond = AST.Less(for_init->ref(), M->ref());
+    auto for_inc = AST.AddAssign(for_init->ref(), AST.Constant(IntValue(1)));
+    auto for_body = AST.Block({});
+    
+    // z = float2((z.x * z.x) - (z.y * z.y), (2.0f * z.x) * z.y) + c;
+    {
+        auto temp_a = AST.Mul(AST.Field(z->ref(), AST.Float2Type->get_field(L"x")), AST.Field(z->ref(), AST.Float2Type->get_field(L"x")));
+        auto temp_b = AST.Mul(AST.Field(z->ref(), AST.Float2Type->get_field(L"y")), AST.Field(z->ref(), AST.Float2Type->get_field(L"y")));
+        auto temp_c = AST.Sub(temp_a, temp_b);
+
+        auto temp_d = AST.Mul(AST.Constant(FloatValue("2.0f")), AST.Field(z->ref(), AST.Float2Type->get_field(L"x")));
+        auto temp_e = AST.Mul(temp_d, AST.Field(z->ref(), AST.Float2Type->get_field(L"y")));
+        std::vector<Expr*> z_inits_for = { temp_c, temp_e };
+        auto temp_f = AST.Construct(AST.Float2Type, z_inits_for);
+        auto modify_z = AST.Assign(z->ref(), AST.Add(temp_f, c->ref()));
+        for_body->add_statement(modify_z);
+    }
+
+    // if (dot(z, z) > 2.0f) break;
+    {
+        std::vector<Expr*> dot_args = { z->ref(), z->ref() };
+        auto temp_a = AST.CallFunction(dot_func->ref(), dot_args);
+        auto if_stmt = AST.If(AST.Greater(temp_a, AST.Constant(FloatValue("2.0f"))), AST.Block({ AST.Break() }));
+        for_body->add_statement(if_stmt);
+    }
+
+    // n += 1.0f;
+    auto increment_n = AST.AddAssign(n->ref(), AST.Constant(FloatValue("1.0f")));
+    for_body->add_statement(increment_n);
+
+    mandelbrot_body->add_statement(AST.For(for_init, for_cond, for_inc, for_body));
 
     // const float t = float(n) / float(M);
     auto t = AST.Variable(AST.FloatType, L"t", AST.Div(n->ref(), AST.StaticCast(AST.FloatType, M->ref())));

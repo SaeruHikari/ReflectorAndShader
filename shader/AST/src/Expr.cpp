@@ -83,10 +83,20 @@ FieldExpr::FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* 
 
 }
 
+const FieldDecl* FieldExpr::field_decl() const
+{
+    return dynamic_cast<const FieldDecl*>(_member_decl);
+}
+
 MethodExpr::MethodExpr(const AST& ast, const DeclRefExpr* owner, const FunctionDecl* method)
     : MemberExpr(ast, owner, method)
 {
 
+}
+
+const MethodDecl* MethodExpr::method_decl() const
+{
+    return dynamic_cast<const MethodDecl*>(_member_decl);
 }
 
 MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args)

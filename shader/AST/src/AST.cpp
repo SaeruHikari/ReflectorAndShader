@@ -17,7 +17,14 @@ BitwiseCastExpr* AST::BitwiseCast(const TypeDecl* type, Expr* expr)
     _stmts.emplace_back(cast);
     return cast;
 }
-    
+
+BreakStmt* AST::Break()
+{
+    auto stmt = new BreakStmt(*this);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
 CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
 {
     auto exp = new CompoundStmt(*this, statements);
@@ -30,6 +37,13 @@ CallExpr* AST::CallFunction(DeclRefExpr* callee, std::span<Expr*> args)
     auto expr = new CallExpr(*this, callee, args);
     _stmts.emplace_back(expr);
     return expr;
+}
+
+CaseStmt* AST::Case(Expr* cond, CompoundStmt* body)
+{
+    auto stmt = new CaseStmt(*this, cond, body);
+    _stmts.emplace_back(stmt);
+    return stmt;
 }
 
 MethodCallExpr* AST::CallMethod(MemberExpr* callee, std::span<Expr*> args)
@@ -60,9 +74,44 @@ ConstructExpr* AST::Construct(const TypeDecl* type, std::span<Expr*> args)
     return expr;
 }
 
+ContinueStmt* AST::Continue()
+{
+    auto stmt = new ContinueStmt(*this);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+DefaultStmt* AST::Default()
+{
+    auto stmt = new DefaultStmt(*this);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
 FieldExpr* AST::Field(DeclRefExpr* base, const FieldDecl* field)
 {
     auto expr = new FieldExpr(*this, base, field);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+ForStmt* AST::For(Stmt* init, Expr* cond, Stmt* inc, CompoundStmt* body)
+{
+    auto stmt = new ForStmt(*this, init, cond, inc, body);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+IfStmt* AST::If(Expr* cond, CompoundStmt* then_body, CompoundStmt* else_body)
+{
+    auto stmt = new IfStmt(*this, cond, then_body, else_body);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+InitListExpr* AST::InitList(std::span<Expr*> exprs)
+{
+    auto expr = new InitListExpr(*this, exprs);
     _stmts.emplace_back(expr);
     return expr;
 }
@@ -79,6 +128,65 @@ MethodExpr* AST::Method(DeclRefExpr* base, const MethodDecl* method)
     auto expr = new MethodExpr(*this, base, method);
     _stmts.emplace_back(expr);
     return expr;
+}
+
+DeclRefExpr* AST::Ref(const Decl* decl)
+{
+    auto expr = new DeclRefExpr(*this, *decl);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+ReturnStmt* AST::Return(Expr* expr)
+{
+    auto stmt = new ReturnStmt(*this, expr);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
+{
+    auto cast = new StaticCastExpr(*this, type, expr);
+    _stmts.emplace_back(cast);
+    return cast;
+}
+
+SwitchStmt* AST::Switch(Expr* cond, std::span<CaseStmt*> cases)
+{
+    auto stmt = new SwitchStmt(*this, cond, cases);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
+{
+    auto unary = new UnaryExpr(*this, op, expr);
+    _stmts.emplace_back(unary);
+    return unary;
+}
+
+DeclStmt* AST::Variable(const TypeDecl* type, Expr* initializer) 
+{  
+    auto decl_name = L"decl" + std::to_wstring(_decls.size());
+    return Variable(type, decl_name, initializer); 
+}
+
+DeclStmt* AST::Variable(const TypeDecl* type, const Name& name, Expr* initializer) 
+{  
+    auto decl = new VarDecl(*this, type, name, initializer);
+    _decls.emplace_back(decl);
+
+    auto stmt = new DeclStmt(*this, decl);
+    _stmts.emplace_back(stmt);
+
+    return stmt;
+}
+
+WhileStmt* AST::While(Expr* cond, CompoundStmt* body)
+{
+    auto stmt = new WhileStmt(*this, cond, body);
+    _stmts.emplace_back(stmt);
+    return stmt;
 }
 
 TypeDecl* const AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
@@ -135,63 +243,11 @@ FunctionDecl* AST::DeclareFunction(const Name& name, TypeDecl* const return_type
     return decl;
 }
 
-InitListExpr* AST::InitList(std::span<Expr*> exprs)
-{
-    auto expr = new InitListExpr(*this, exprs);
-    _stmts.emplace_back(expr);
-    return expr;
-}
-
 ParamVarDecl* AST::DeclareParam(const TypeDecl* type, const Name& name)
 {
     auto decl = new ParamVarDecl(*this, type, name);
     _decls.emplace_back(decl);
     return decl;
-}
-
-DeclRefExpr* AST::Ref(const Decl* decl)
-{
-    auto expr = new DeclRefExpr(*this, *decl);
-    _stmts.emplace_back(expr);
-    return expr;
-}
-
-ReturnStmt* AST::Return(Expr* expr)
-{
-    auto stmt = new ReturnStmt(*this, expr);
-    _stmts.emplace_back(stmt);
-    return stmt;
-}
-
-StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
-{
-    auto cast = new StaticCastExpr(*this, type, expr);
-    _stmts.emplace_back(cast);
-    return cast;
-}
-
-UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
-{
-    auto unary = new UnaryExpr(*this, op, expr);
-    _stmts.emplace_back(unary);
-    return unary;
-}
-
-DeclStmt* AST::Variable(const TypeDecl* type, Expr* initializer) 
-{  
-    auto decl_name = L"decl" + std::to_wstring(_decls.size());
-    return Variable(type, decl_name, initializer); 
-}
-
-DeclStmt* AST::Variable(const TypeDecl* type, const Name& name, Expr* initializer) 
-{  
-    auto decl = new VarDecl(*this, type, name, initializer);
-    _decls.emplace_back(decl);
-
-    auto stmt = new DeclStmt(*this, decl);
-    _stmts.emplace_back(stmt);
-
-    return stmt;
 }
 
 const TypeDecl* AST::GetType(const Name& name) const
