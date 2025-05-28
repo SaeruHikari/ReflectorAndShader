@@ -22,11 +22,13 @@ public:
     BinaryExpr* Binary(BinaryOp op, Expr* left, Expr* right);
     BitwiseCastExpr* BitwiseCast(const TypeDecl* type, Expr* expr);
     CompoundStmt* Block(const std::vector<Stmt*>& statements);
-    CallExpr* Call(DeclRefExpr* callee, std::span<Expr*> args);
+    CallExpr* CallFunction(DeclRefExpr* callee, std::span<Expr*> args);
+    MethodCallExpr* CallMethod(MemberExpr* callee, std::span<Expr*> args);
     ConstantExpr* Constant(const IntValue& v);
     ConstantExpr* Constant(const FloatValue& v);
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
-    MemberExpr* Member(DeclRefExpr* base, const FieldDecl* field);
+    FieldExpr* Field(DeclRefExpr* base, const FieldDecl* field);
+    MethodExpr* Method(DeclRefExpr* base, const MethodDecl* method);
     DeclRefExpr* Ref(const Decl* decl);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
     DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
@@ -37,6 +39,7 @@ public:
     TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
     ArrayTypeDecl* const DeclareArrayType(TypeDecl* const element, uint32_t count);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
+    MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(const TypeDecl* type, const Name& name);
 
@@ -79,6 +82,7 @@ private:
     std::vector<Stmt*> _stmts;
     std::vector<TypeDecl*> _types;
     std::vector<FunctionDecl*> _funcs;
+    std::vector<MethodDecl*> _methods;
     std::map<std::pair<TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
 
 public:

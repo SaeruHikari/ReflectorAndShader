@@ -75,10 +75,30 @@ const Stmt* TypeDecl::body() const
     return nullptr;
 }
 
+void TypeDecl::add_field(FieldDecl* field)
+{
+    _fields.emplace_back(field);
+    _size += field->size();
+    _alignment = std::max(_alignment, field->alignment());
+}
+
+void TypeDecl::add_method(MethodDecl* method)
+{
+    _methods.emplace_back(method);
+}
+
 FieldDecl* TypeDecl::get_field(const Name& name) const
 {
     auto found = std::find_if(_fields.begin(), _fields.end(), [&](const FieldDecl* field) { return field->name() == name; });
     if (found != _fields.end())
+        return *found;
+    return nullptr;
+}
+
+MethodDecl* TypeDecl::get_method(const Name& name) const
+{
+    auto found = std::find_if(_methods.begin(), _methods.end(), [&](const MethodDecl* method) { return method->name() == name; });
+    if (found != _methods.end())
         return *found;
     return nullptr;
 }
@@ -105,7 +125,7 @@ FunctionDecl::FunctionDecl(const AST& ast, const Name& name, TypeDecl* const ret
     }
 }
 
-MethodDecl::MethodDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+MethodDecl::MethodDecl(const AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
     : FunctionDecl(ast, name, return_type, params, body)
 {
 

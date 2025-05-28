@@ -18,13 +18,13 @@ struct Stmt
 public:
     virtual ~Stmt() = default;
     
-    inline std::span<Stmt* const> children() const { return _children; }
+    inline std::span<const Stmt* const> children() const { return _children; }
     String dump() const;
 
 protected:
     Stmt(const AST& ast);
     const AST* _ast = nullptr;
-    std::vector<Stmt*> _children;
+    std::vector<const Stmt*> _children;
 };
 
 struct DeclStmt : Stmt

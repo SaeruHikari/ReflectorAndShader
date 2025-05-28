@@ -6,6 +6,8 @@ namespace skr::SSL {
 struct AST;
 struct Expr;
 struct TypeDecl;
+struct FieldDecl;
+struct MethodDecl;
 
 struct Decl
 {
@@ -60,9 +62,14 @@ public:
     const Size size() const  { return _size; }
     const Size alignment() const { return _alignment; }
     const auto& fields() const { return _fields; }
+    const auto& methods() const { return _methods; }
     const Stmt* body() const override;
 
+    void add_field(FieldDecl* field);
+    void add_method(MethodDecl* method);
+
     FieldDecl* get_field(const Name& name) const;
+    MethodDecl* get_method(const Name& name) const;
 
 protected:
     friend struct AST;
@@ -74,6 +81,7 @@ protected:
     Size _size = 0;
     Size _alignment = 0;
     std::vector<FieldDecl*> _fields;
+    std::vector<MethodDecl*> _methods;
 };
 
 struct ArrayTypeDecl : public TypeDecl
@@ -113,10 +121,12 @@ protected:
 struct MethodDecl : public FunctionDecl
 {
 public:
+    const TypeDecl* owner_type() const { return _owner; }
 
 protected:
     friend struct AST;
-    MethodDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    MethodDecl(const AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    TypeDecl* _owner = nullptr; // the type that owns this method
 };
 
 } // namespace skr::SSL

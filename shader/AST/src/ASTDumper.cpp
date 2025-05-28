@@ -93,7 +93,12 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     }
     else if (auto callExpr = dynamic_cast<const CallExpr*>(stmt))
     {
-        sb.append_expr(L"CallExpr");
+        sb.append_expr(L"CallExpr ");
+        sb.endline();
+    }
+    else if (auto methodCall = dynamic_cast<const MethodCallExpr*>(stmt))
+    {
+        sb.append_expr(L"MethodCallExpr ");
         sb.endline();
     }
     else if (auto constructExpr = dynamic_cast<const ConstructExpr*>(stmt))

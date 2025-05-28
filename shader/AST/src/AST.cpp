@@ -25,9 +25,16 @@ CompoundStmt* AST::Block(const std::vector<Stmt*>& statements)
     return exp;
 }
 
-CallExpr* AST::Call(DeclRefExpr* callee, std::span<Expr*> args)
+CallExpr* AST::CallFunction(DeclRefExpr* callee, std::span<Expr*> args)
 {
     auto expr = new CallExpr(*this, callee, args);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+MethodCallExpr* AST::CallMethod(MemberExpr* callee, std::span<Expr*> args)
+{
+    auto expr = new MethodCallExpr(*this, callee, args);
     _stmts.emplace_back(expr);
     return expr;
 }
@@ -53,9 +60,16 @@ ConstructExpr* AST::Construct(const TypeDecl* type, std::span<Expr*> args)
     return expr;
 }
 
-MemberExpr* AST::Member(DeclRefExpr* base, const FieldDecl* field)
+FieldExpr* AST::Field(DeclRefExpr* base, const FieldDecl* field)
 {
-    auto expr = new MemberExpr(*this, base, field);
+    auto expr = new FieldExpr(*this, base, field);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
+MethodExpr* AST::Method(DeclRefExpr* base, const MethodDecl* method)
+{
+    auto expr = new MethodExpr(*this, base, method);
     _stmts.emplace_back(expr);
     return expr;
 }
@@ -95,6 +109,14 @@ FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 {
     auto decl = new FieldDecl(*this, name, type);
     _decls.emplace_back(decl);
+    return decl;
+}
+
+MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body)
+{
+    auto decl = new MethodDecl(*this, owner, name, return_type, params, body);
+    _decls.emplace_back(decl);
+    _methods.emplace_back(decl);
     return decl;
 }
 

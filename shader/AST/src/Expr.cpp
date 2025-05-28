@@ -59,10 +59,30 @@ InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs)
         _children.emplace_back(expr);
 }
 
-MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
+MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
 
+}
+
+FieldExpr::FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
+    : MemberExpr(ast, owner, field)
+{
+
+}
+
+MethodExpr::MethodExpr(const AST& ast, const DeclRefExpr* owner, const FunctionDecl* method)
+    : MemberExpr(ast, owner, method)
+{
+
+}
+
+MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args)
+    : Expr(ast), _callee(callee), _args(args.begin(), args.end())
+{
+    _children.emplace_back(_callee);
+    for (auto arg : _args)
+        _children.emplace_back(arg);
 }
 
 StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)

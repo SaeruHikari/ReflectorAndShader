@@ -110,11 +110,44 @@ public:
     const DeclRefExpr* owner() const { return _owner; }
     const Decl* member_decl() const { return _member_decl; }
 
-private:
+protected:
     friend struct AST;
-    MemberExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
+    MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field);
     const DeclRefExpr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
+};
+
+struct FieldExpr : MemberExpr
+{
+public:
+    const FieldDecl* field_decl() const { return dynamic_cast<const FieldDecl*>(_member_decl); }
+
+private:
+    friend struct AST;
+    FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
+};
+
+struct MethodExpr : MemberExpr
+{
+public:
+    const FunctionDecl* method_decl() const { return dynamic_cast<const FunctionDecl*>(_member_decl); }
+    
+private:
+    friend struct AST;
+    MethodExpr(const AST& ast, const DeclRefExpr* owner, const FunctionDecl* method);
+};
+
+struct MethodCallExpr : Expr
+{
+public:
+    const MemberExpr* callee() const { return _callee; }
+    std::span<Expr* const> args() const { return _args; }
+
+private:
+    friend struct AST;
+    MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args);
+    const MemberExpr* _callee = nullptr;
+    std::vector<Expr*> _args;
 };
 
 struct StaticCastExpr : Expr

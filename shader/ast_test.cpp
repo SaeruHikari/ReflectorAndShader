@@ -12,6 +12,8 @@ int main()
     auto fields = std::vector<FieldDecl*>();
     fields.emplace_back(AST.DeclareField(L"i", AST.IntType));
     auto DataType = AST.DeclareType(L"Data", fields);
+    auto Method = AST.DeclareMethod(DataType, L"do_something", AST.VoidType, {}, nullptr);
+    DataType->add_method(Method);
 
     auto param = AST.DeclareParam(AST.Float4Type, L"param");
     auto param_ref = (Expr*)param->ref();
@@ -31,18 +33,19 @@ int main()
     auto d = AST.Variable(AST.Float4Type, L"d");
     auto init_d = AST.Assign(d->ref(), param->ref());
     auto modify_d = AST.Assign(
-        AST.Member(d->ref(), AST.Float4Type->get_field(L"x")),
-        AST.Member(d->ref(), AST.Float4Type->get_field(L"y"))
+        AST.Field(d->ref(), AST.Float4Type->get_field(L"x")),
+        AST.Field(d->ref(), AST.Float4Type->get_field(L"y"))
     );
     
     auto data = AST.Variable(DataType, L"data", AST.InitList({}));
-    auto test_field = AST.Assign(AST.Member(data->ref(), fields[0]), AST.Constant(IntValue(2)));
+    auto test_field = AST.Assign(AST.Field(data->ref(), fields[0]), AST.Constant(IntValue(2)));
 
     auto block = AST.Block({ a, b, c, init_a, init_b, init_c, d, init_d, modify_d, data, test_field });
     auto func = AST.DeclareFunction(L"main", AST.IntType, std::span(&param, 1), block);
 
     Expr* construct = AST.Construct(AST.Float4Type, inits);
-    block->add_statement(AST.Call(func->ref(), std::span<Expr*>(&construct, 1)));
+    block->add_statement(AST.CallMethod(AST.Method(data->ref(), Method), {}));
+    block->add_statement(AST.CallFunction(func->ref(), std::span<Expr*>(&construct, 1)));
 
     ASTVisitor visitor = {};
     String content = L"";
