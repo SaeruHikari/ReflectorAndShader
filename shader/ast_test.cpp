@@ -88,7 +88,7 @@ void mandelbrot(skr::SSL::AST& AST)
         }
     */
     auto for_init = AST.Variable(AST.IntType, L"i", AST.Constant(IntValue(0)));
-    auto for_cond = AST.Less(for_init->ref(), M->ref());
+    auto for_cond = AST.Less(for_init->ref(), AST.Unary(UnaryOp::PLUS, M->ref()));
     auto for_inc = AST.AddAssign(for_init->ref(), AST.Constant(IntValue(1)));
     auto for_body = AST.Block({});
     
@@ -192,7 +192,7 @@ void some_test(skr::SSL::AST& AST)
     auto b = AST.Variable(AST.FloatType, L"b");
     auto c = AST.Variable(AST.Float4Type, L"c");
     auto init_a = AST.Assign(a->ref(), AST.Constant(FloatValue("3.5f")));
-    auto init_b = AST.Assign(b->ref(), AST.Constant(FloatValue("5.5f")));
+    auto init_b = AST.Assign(AST.Unary(UnaryOp::PLUS, b->ref()), AST.Constant(FloatValue("5.5f")));
     auto init_c = AST.Assign(c->ref(), AST.Add(a->ref(), b->ref()));
 
     auto d = AST.Variable(AST.Float4Type, L"d");

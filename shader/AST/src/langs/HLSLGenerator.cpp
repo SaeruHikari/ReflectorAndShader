@@ -2,12 +2,36 @@
 
 namespace skr::SSL
 {
+bool NeedParens(const Stmt* stmt)
+{
+    if (auto parent = stmt->parent())
+    {
+        if (dynamic_cast<const BinaryExpr*>(parent) || 
+            dynamic_cast<const UnaryExpr*>(parent) || 
+            dynamic_cast<const CastExpr*>(parent))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 {
     using namespace skr::SSL;
+
+    bool isStatement = false;
+    if (auto parent = stmt->parent())
+    {
+        isStatement = dynamic_cast<const CompoundStmt*>(parent);
+    }
+
     if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
-        sb.append(L"(");
+        const bool needParens = NeedParens(stmt);
+        if (needParens)
+            sb.append(L"(");
+
         visitExpr(sb, binary->left());
         auto op = binary->op();
         String op_name = L"";
@@ -93,18 +117,12 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         }
         sb.append(op_name);
         visitExpr(sb, binary->right());
-        sb.append(L")");
 
-        if (auto parent = stmt->parent())
-        {
-            bool IsStatement = dynamic_cast<const CompoundStmt*>(parent) ||
-                               // dynamic_cast<const IfStmt*>(parent) ||
-                               // dynamic_cast<const ForStmt*>(parent) ||
-                               dynamic_cast<const WhileStmt*>(parent) ||
-                               dynamic_cast<const SwitchStmt*>(parent);
-            if (IsStatement)
-                sb.endline(L';');
-        }
+        if (needParens)
+            sb.append(L")");
+
+        if (isStatement)
+            sb.append(L";");
     }
     else if (auto bitwiseCast = dynamic_cast<const BitwiseCastExpr*>(stmt))
     {
@@ -328,27 +346,36 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     }
     else if (auto unary = dynamic_cast<const UnaryExpr*>(stmt))
     {
-        String op_name = L"";
-        switch (unary->op())
+        const bool needParens = NeedParens(stmt);
+        if (needParens)
+            sb.append(L"(");
+
         {
-        case UnaryOp::PLUS:
-            op_name = L" + ";
-            break;
-        case UnaryOp::MINUS:
-            op_name = L" - ";
-            break;
-        case UnaryOp::NOT:
-            op_name = L" ! ";
-            break;
-        case UnaryOp::BIT_NOT:
-            op_name = L" ~ ";
-            break;
-        default:
-            assert(false && "Unsupported unary operation");
+            String op_name = L"";
+            switch (unary->op())
+            {
+            case UnaryOp::PLUS:
+                op_name = L"+";
+                break;
+            case UnaryOp::MINUS:
+                op_name = L"-";
+                break;
+            case UnaryOp::NOT:
+                op_name = L"!";
+                break;
+            case UnaryOp::BIT_NOT:
+                op_name = L"~";
+                break;
+            default:
+                assert(false && "Unsupported unary operation");
+            }
+            
+            sb.append(op_name);
+            visitExpr(sb, unary->expr());
         }
-        
-        sb.append(op_name);
-        visitExpr(sb, unary->expr());
+
+        if (needParens)
+            sb.append(L")");
     }
     else if (auto declStmt = dynamic_cast<const DeclStmt*>(stmt))
     {
@@ -360,7 +387,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
                 sb.append(L" = ");
                 visitExpr(sb, init);
             }
-            sb.append(L";");
+            sb.append(L"; ");
         }
     }
     else if (auto whileStmt = dynamic_cast<const WhileStmt*>(stmt))
@@ -375,14 +402,8 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         sb.append_expr(L"UnknownExpr ");
     }
 
-    if (auto parent = stmt->parent())
-    {
-        bool IsStatement = dynamic_cast<const CompoundStmt*>(parent) ||
-                           dynamic_cast<const WhileStmt*>(parent) ||
-                           dynamic_cast<const SwitchStmt*>(parent);
-        if (IsStatement)
-            sb.endline();
-    }
+    if (isStatement)
+        sb.endline();
 }
 
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl)
