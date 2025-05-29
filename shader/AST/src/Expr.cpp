@@ -9,14 +9,14 @@ Expr::Expr(const AST& ast) : ValueStmt(ast) {}
 BinaryExpr::BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op) 
     : Expr(ast), _left(left), _right(right), _op(op) 
 {
-    _children.emplace_back(left);
-    _children.emplace_back(right);
+    add_child(left);
+    add_child(right);
 }
 
 CastExpr::CastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
     : Expr(ast), _type(type), _expr(expr) 
 {
-    _children.emplace_back(expr);
+    add_child(expr);
 }
 
 BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
@@ -28,9 +28,9 @@ BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* exp
 CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
     : Expr(ast), _callee(callee), _args(args.begin(), args.end()) 
 {
-    _children.emplace_back(callee);
+    add_child(callee);
     for (auto arg : _args)
-        _children.emplace_back(arg);
+        add_child(arg);
 }
 
 ConstantExpr::ConstantExpr(const AST& ast, const IntValue& v) 
@@ -49,7 +49,7 @@ ConstructExpr::ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Exp
     : Expr(ast), _type(type), _args(args.begin(), args.end())
 {
     for (auto arg : _args)
-        _children.emplace_back(arg);
+        add_child(arg);
 }
 
 DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl) 
@@ -68,13 +68,13 @@ InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs)
     : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
 {
     for (auto expr : _exprs)
-        _children.emplace_back(expr);
+        add_child(expr);
 }
 
 MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
-    _children.emplace_back(_owner);
+    add_child(_owner);
 }
 
 FieldExpr::FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
@@ -102,13 +102,13 @@ const MethodDecl* MethodExpr::method_decl() const
 MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args)
     : Expr(ast), _callee(callee), _args(args.begin(), args.end())
 {
-    _children.emplace_back(_callee);
+    add_child(_callee);
     for (auto arg : _args)
-        _children.emplace_back(arg);
+        add_child(arg);
 }
 
 StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)
-    : Expr(ast)
+    : CastExpr(ast, type, expr)
 {
 
 }
@@ -116,7 +116,7 @@ StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)
 UnaryExpr::UnaryExpr(const AST& ast, UnaryOp op, Expr* expr)
     : Expr(ast), _op(op), _expr(expr)
 {
-    _children.emplace_back(expr);
+    add_child(expr);
 }
 
 } // namespace skr::SSL

@@ -17,14 +17,19 @@ struct CaseStmt;
 struct Stmt
 {
 public:
-    virtual ~Stmt() = default;
-    
     inline std::span<const Stmt* const> children() const { return _children; }
+    inline const Stmt* parent() const { return _parent; }
+
     String dump() const;
 
 protected:
+    friend struct AST;
     Stmt(const AST& ast);
+    virtual ~Stmt() = default;
+
+    void add_child(const Stmt* child);
     const AST* _ast = nullptr;
+    const Stmt* _parent = nullptr;
     std::vector<const Stmt*> _children;
 };
 

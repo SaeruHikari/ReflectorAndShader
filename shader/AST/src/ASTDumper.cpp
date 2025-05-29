@@ -285,7 +285,6 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     {
         sb.append_expr(L"UnknownExpr ");
         sb.endline();
-
     }
     
     sb.indent([&](){

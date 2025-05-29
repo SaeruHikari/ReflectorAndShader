@@ -5,6 +5,12 @@ namespace skr::SSL {
 
 Stmt::Stmt(const AST& ast) : _ast(&ast) {}
 
+void Stmt::add_child(const Stmt* child) 
+{
+    const_cast<Stmt*&>(child->_parent) = this;
+    _children.emplace_back(child);
+}
+
 DeclStmt::DeclStmt(const AST& ast, Decl* decl) : Stmt(ast), _decl(decl) {}
 
 DeclRefExpr* DeclStmt::ref() const
@@ -17,39 +23,39 @@ CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements)
 {
     for (auto& statement : statements)
     {
-        _children.emplace_back(statement);
+        add_child(statement);
     }
 }
 
 void CompoundStmt::add_statement(Stmt* statement)
 {
-    _children.emplace_back(statement);
+    add_child(statement);
 }
 
 IfStmt::IfStmt(const AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body)
     : Stmt(ast), _cond(cond), _then_body(then_body), _else_body(else_body)
 {
-    _children.emplace_back(cond);
-    _children.emplace_back(then_body);
+    add_child(cond);
+    add_child(then_body);
     if (else_body) {
-        _children.emplace_back(else_body);
+        add_child(else_body);
     }
 }
 
 ForStmt::ForStmt(const AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body)
     : Stmt(ast), _init(init), _cond(cond), _inc(inc), _body(body)
 {
-    _children.emplace_back(init);
-    _children.emplace_back(cond);
-    _children.emplace_back(inc);
-    _children.emplace_back(body);
+    add_child(init);
+    add_child(cond);
+    add_child(inc);
+    add_child(body);
 }
 
 WhileStmt::WhileStmt(const AST& ast, Stmt* cond, CompoundStmt* body)
     : Stmt(ast), _cond(cond), _body(body)
 {
-    _children.emplace_back(cond);
-    _children.emplace_back(body);
+    add_child(cond);
+    add_child(body);
 }
 
 BreakStmt::BreakStmt(const AST& ast)
@@ -73,24 +79,24 @@ DefaultStmt::DefaultStmt(const AST& ast)
 SwitchStmt::SwitchStmt(const AST& ast, Stmt* cond, std::span<CaseStmt*> cases)
     : Stmt(ast), _cond(cond), _cases(cases.begin(), cases.end())
 {
-    _children.emplace_back(cond);
+    add_child(cond);
     for (auto case_stmt : _cases)
     {
-        _children.emplace_back(case_stmt);
+        add_child(case_stmt);
     }
 }
 
 CaseStmt::CaseStmt(const AST& ast, Stmt* cond, Stmt* body)
     : Stmt(ast), _cond(cond), _body(body)
 {
-    _children.emplace_back(cond);
-    _children.emplace_back(body);
+    add_child(cond);
+    add_child(body);
 }
 
 ReturnStmt::ReturnStmt(const AST& ast, Stmt* value)
     : Stmt(ast), _value(value)
 {
-    _children.emplace_back(value);
+    add_child(value);
 }
 
 ValueStmt::ValueStmt(const AST& ast)

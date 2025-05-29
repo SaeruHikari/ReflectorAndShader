@@ -163,7 +163,7 @@ private:
     std::vector<Expr*> _args;
 };
 
-struct StaticCastExpr : Expr
+struct StaticCastExpr : CastExpr
 {
 private:
     friend struct AST;

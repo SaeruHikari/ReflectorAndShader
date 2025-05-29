@@ -3,7 +3,7 @@
 #include "SSL/Constant.hpp"
 #include "SSL/Decl.hpp"
 #include "SSL/AST.hpp"
-#include "SSL/TestASTVisitor.hpp"
+#include "SSL/langs/HLSLGenerator.hpp"
 
 void mandelbrot(skr::SSL::AST& AST)
 {
@@ -23,16 +23,16 @@ void mandelbrot(skr::SSL::AST& AST)
     // const float x = float(tid.x) / (float)tsize.x;
     auto x = AST.Variable(AST.FloatType, L"x", 
         AST.Div(
-            AST.Field(tid->ref(), AST.UInt2Type->get_field(L"x")), 
-            AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x"))
+            AST.StaticCast(AST.FloatType, AST.Field(tid->ref(), AST.UInt2Type->get_field(L"x"))), 
+            AST.StaticCast(AST.FloatType, AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x")))
         ));
     mandelbrot_body->add_statement(x);
     
     // const float y = float(tid.y) / (float)tsize.y;
     auto y = AST.Variable(AST.FloatType, L"y",
         AST.Div(
-            AST.Field(tid->ref(), AST.UInt2Type->get_field(L"y")), 
-            AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"y"))
+            AST.StaticCast(AST.FloatType, AST.Field(tid->ref(), AST.UInt2Type->get_field(L"y"))), 
+            AST.StaticCast(AST.FloatType, AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"y")))
         ));
     mandelbrot_body->add_statement(y);
 
@@ -221,13 +221,9 @@ int main()
     // some_test(AST);
     mandelbrot(AST);
 
-    ASTVisitor visitor = {};
-    String content = L"";
-    for (auto type : AST.types())
-        content += visitor.visit(type);
-    for (auto func : AST.funcs())
-        content += visitor.visit(func);
-    std::wcout << content << std::endl;
+    HLSLGenerator hlsl_generator = {};
+    SourceBuilderNew hlsl_sb = {};
+    std::wcout << hlsl_generator.generate_code(hlsl_sb, AST) << std::endl;
 
     std::wcout << AST.dump() << std::endl;
 
