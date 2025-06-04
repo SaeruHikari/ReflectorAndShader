@@ -250,6 +250,30 @@ ParamVarDecl* AST::DeclareParam(const TypeDecl* type, const Name& name)
     return decl;
 }
 
+ByteBufferTypeDecl* const AST::ByteBuffer(BufferFlags flags)
+{
+    auto&& iter = _buffers.find(nullptr);
+    if (iter != _buffers.end())
+        return dynamic_cast<ByteBufferTypeDecl*>(iter->second);
+
+    auto new_type = new ByteBufferTypeDecl(*this, flags);
+    _types.emplace_back(new_type);
+    _buffers[nullptr] = new_type;
+    return new_type;
+}
+
+StructuredBufferTypeDecl* const AST::StructuredBuffer(TypeDecl* const element, BufferFlags flags)
+{
+    auto&& iter = _buffers.find(element);
+    if (iter != _buffers.end())
+        return dynamic_cast<StructuredBufferTypeDecl*>(iter->second);
+
+    auto new_type = new StructuredBufferTypeDecl(*this, element, flags);
+    _types.emplace_back(new_type);
+    _buffers[element] = new_type;
+    return new_type;
+}
+
 const TypeDecl* AST::GetType(const Name& name) const
 {
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
@@ -339,6 +363,12 @@ AST::~AST()
         delete decl;
     }
     _decls.clear();
+
+    for (auto attr : _attrs)
+    {
+        delete attr;
+    }
+    _attrs.clear();
 }
 
 } // namespace skr::SSL

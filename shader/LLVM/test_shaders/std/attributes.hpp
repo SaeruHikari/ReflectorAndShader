@@ -16,7 +16,6 @@
 
 #endif
 
-#define system_value(x) clang::annotate("skr-shader", "system_value", (x))
 #define ignore clang::annotate("skr-shader", "ignore")
 #define noignore clang::annotate("skr-shader", "noignore")
 #define dump clang::annotate("skr-shader", "dump")
@@ -30,5 +29,9 @@
 #define ext_call(name) clang::annotate("skr-shader", "ext_call", (name))
 #define expr(name) clang::annotate("skr-shader", "expr", (name))
 
-
 #define trait struct [[ignore]]
+
+
+// +++
+#define group(x) clang::annotate("skr-shader", "group", (x))
+#define binding(x) clang::annotate("skr-shader", "binding", (x))

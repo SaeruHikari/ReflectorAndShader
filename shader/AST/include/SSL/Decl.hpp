@@ -4,6 +4,7 @@
 namespace skr::SSL {
 
 struct AST;
+struct Attr;
 struct Expr;
 struct TypeDecl;
 struct FieldDecl;
@@ -17,9 +18,13 @@ public:
     virtual const Stmt* body() const = 0;
     virtual DeclRefExpr* ref() const;
 
+    std::span<Attr* const> attrs() const { return _attrs; }
+    void add_attr(Attr* attr);
+
 protected:
-    Decl(const AST& ast);
+    Decl(AST& ast);
     const AST* _ast = nullptr;
+    std::vector<Attr*> _attrs;
 };
 
 struct VarDecl : public Decl
@@ -32,7 +37,7 @@ public:
     
 protected:
     friend struct AST;    
-    VarDecl(const AST& ast, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
+    VarDecl(AST& ast, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     const TypeDecl* _type = nullptr;
     Name _name = L"__INVALID_VAR__";
     Expr* _initializer = nullptr;
@@ -49,7 +54,7 @@ public:
 
 protected:
     friend struct AST;    
-    FieldDecl(const AST& ast, const Name& _name, const TypeDecl* type);
+    FieldDecl(AST& ast, const Name& _name, const TypeDecl* type);
     Name _name = L"__INVALID_MEMBER__";
     const TypeDecl* _type = nullptr;
 };
@@ -73,8 +78,8 @@ public:
 
 protected:
     friend struct AST;
-    TypeDecl(const AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
-    TypeDecl(const AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
+    TypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
+    TypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
 
     Name _name = L"__INVALID_TYPE__";
     const bool _is_builtin = true;
@@ -84,11 +89,41 @@ protected:
     std::vector<MethodDecl*> _methods;
 };
 
+struct BufferTypeDecl : public TypeDecl
+{
+public:
+    const auto flags() const { return _flags; }
+
+protected:
+    BufferTypeDecl(AST& ast, const String& name, BufferFlags flags);
+    BufferFlags _flags;
+};
+
+struct ByteBufferTypeDecl : public BufferTypeDecl
+{
+protected:
+    friend struct AST;
+    ByteBufferTypeDecl(AST& ast, BufferFlags flags);
+};
+
+struct StructuredBufferTypeDecl : public BufferTypeDecl
+{
+public:
+    const TypeDecl& element() const { return *_element; }
+    const Size element_size() const { return _element->size(); }
+    const Size element_alignment() const { return _element->alignment(); }
+
+protected:
+    friend struct AST;
+    StructuredBufferTypeDecl(AST& ast, TypeDecl* const element, BufferFlags flags);
+    TypeDecl* const _element = nullptr; // the type of elements in the buffer
+};
+
 struct ArrayTypeDecl : public TypeDecl
 {
-    protected:
+protected:
     friend struct AST;
-    ArrayTypeDecl(const AST& ast, TypeDecl* const element, uint32_t count);
+    ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count);
 };
 
 struct ParamVarDecl : public VarDecl
@@ -98,7 +133,7 @@ public:
 
     protected:
     friend struct AST;    
-    ParamVarDecl(const AST& ast, const TypeDecl* type, const Name& _name);
+    ParamVarDecl(AST& ast, const TypeDecl* type, const Name& _name);
 };
 
 struct FunctionDecl : public Decl
@@ -111,7 +146,7 @@ public:
 
 protected:
     friend struct AST;
-    FunctionDecl(const AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    FunctionDecl(AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
     const Name _name = L"__INVALID_FUNC__";
     const CompoundStmt* _body = nullptr;
     TypeDecl* const _return_type = nullptr;
@@ -125,7 +160,7 @@ public:
 
 protected:
     friend struct AST;
-    MethodDecl(const AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    MethodDecl(AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
     TypeDecl* _owner = nullptr; // the type that owns this method
 };
 

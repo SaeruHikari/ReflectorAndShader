@@ -1,8 +1,10 @@
 #pragma once
+#include <map>
+#include <unordered_map>
+#include "Attr.hpp"
 #include "Expr.hpp"
 #include "Decl.hpp"
 #include "Constant.hpp"
-#include <map>
 
 namespace skr::SSL {
 
@@ -54,6 +56,17 @@ public:
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(const TypeDecl* type, const Name& name);
 
+    ByteBufferTypeDecl* const ByteBuffer(BufferFlags flags);
+    StructuredBufferTypeDecl* const StructuredBuffer(TypeDecl* const element, BufferFlags flags);
+    // TypeDecl* const TextureType(TypeDecl* const element);
+
+    template <typename ATTR, typename... Args>
+    inline ATTR* DeclareAttr(Args&&... args) {
+        auto attr = new ATTR(std::forward<Args>(args)...);
+        _attrs.emplace_back(attr);
+        return attr;
+    }
+
     inline BinaryExpr* Add(Expr* left, Expr* right) { return Binary(BinaryOp::ADD, left, right); }
     inline BinaryExpr* Sub(Expr* left, Expr* right) { return Binary(BinaryOp::SUB, left, right); }
     inline BinaryExpr* Mul(Expr* left, Expr* right) { return Binary(BinaryOp::MUL, left, right); }
@@ -91,9 +104,11 @@ public:
 private:
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
+    std::unordered_map<TypeDecl*, BufferTypeDecl*> _buffers;
     std::vector<TypeDecl*> _types;
     std::vector<FunctionDecl*> _funcs;
     std::vector<MethodDecl*> _methods;
+    std::vector<Attr*> _attrs;
     std::map<std::pair<TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
 
 public:

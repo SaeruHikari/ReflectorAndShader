@@ -16,6 +16,20 @@ bool NeedParens(const Stmt* stmt)
     return false;
 }
 
+std::unordered_map<String, String> SystemValueMap = {
+    { L"ThreadID", L"SV_DispatchThreadID" }
+};
+String UnknownSystemValue = L"UnknownSystemValue";
+const String& GetSVForBuiltin(const String& builtin)
+{
+    auto it = SystemValueMap.find(builtin);
+    if (it != SystemValueMap.end())
+    {
+        return it->second;
+    }
+    return UnknownSystemValue; // return the original name if not found
+}
+
 void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 {
     using namespace skr::SSL;
@@ -120,9 +134,6 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 
         if (needParens)
             sb.append(L")");
-
-        if (isStatement)
-            sb.append(L";");
     }
     else if (auto bitwiseCast = dynamic_cast<const BitwiseCastExpr*>(stmt))
     {
@@ -133,7 +144,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     }
     else if (auto breakStmt = dynamic_cast<const BreakStmt*>(stmt))
     {
-        sb.append(L"break;");
+        sb.append(L"break");
     }
     else if (auto block = dynamic_cast<const CompoundStmt*>(stmt))
     {
@@ -184,18 +195,30 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     else if (auto methodCall = dynamic_cast<const MethodCallExpr*>(stmt))
     {
         auto callee = methodCall->callee();
-        if (callee)
-            visitExpr(sb, callee);
-        
-        sb.append(L"(");
-        for (size_t i = 0; i < methodCall->args().size(); i++)
+        auto method = dynamic_cast<const MethodDecl*>(callee->member_decl());
+        auto type = method->owner_type();
+        if (auto as_buffer = dynamic_cast<const BufferTypeDecl*>(type) && method->name() == L"Store")
         {
-            auto arg = methodCall->args()[i];
-            if (i > 0)
-                sb.append(L", ");
-            visitExpr(sb, arg);
+            visitExpr(sb, callee->owner());
+            sb.append(L"[");
+            visitExpr(sb, methodCall->args()[0]);
+            sb.append(L"] = ");
+            visitExpr(sb, methodCall->args()[1]);
         }
-        sb.append(L")");
+        else
+        {
+            visitExpr(sb, callee);
+            
+            sb.append(L"(");
+            for (size_t i = 0; i < methodCall->args().size(); i++)
+            {
+                auto arg = methodCall->args()[i];
+                if (i > 0)
+                    sb.append(L", ");
+                visitExpr(sb, arg);
+            }
+            sb.append(L")");
+        }
     }
     else if (auto constant = dynamic_cast<const ConstantExpr*>(stmt))
     {
@@ -247,15 +270,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         else if (auto _as_method = dynamic_cast<const MethodDecl*>(field))
         {
             visitExpr(sb, owner);
-            sb.append(L"." + _as_method->name() + L"(");
-            for (size_t i = 0; i < _as_method->parameters().size(); i++)
-            {
-                auto param = _as_method->parameters()[i];
-                if (i > 0)
-                    sb.append(L", ");
-                sb.append(param->type().name() + L" " + param->name());
-            }
-            sb.append(L")");
+            sb.append(L"." + _as_method->name());
         }
         else
         {
@@ -267,6 +282,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         sb.append(L"for (");
         if (forStmt->init())
             visitExpr(sb, forStmt->init());
+        sb.append(L"; ");
         
         if (forStmt->cond())
             visitExpr(sb, forStmt->cond());
@@ -324,11 +340,10 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
             sb.append(L" ");
             visitExpr(sb, returnStmt->value());
         }
-        sb.append(L";");
     }
     else if (auto staticCast = dynamic_cast<const StaticCastExpr*>(stmt))
     {
-        sb.append(L"static_cast<" + staticCast->type()->name() + L">(");
+        sb.append(L"((" + staticCast->type()->name() + L")");
         visitExpr(sb, staticCast->expr());
         sb.append(L")");
     }
@@ -387,7 +402,6 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
                 sb.append(L" = ");
                 visitExpr(sb, init);
             }
-            sb.append(L"; ");
         }
     }
     else if (auto whileStmt = dynamic_cast<const WhileStmt*>(stmt))
@@ -403,7 +417,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     }
 
     if (isStatement)
-        sb.endline();
+        sb.endline(L';');
 }
 
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl)
@@ -434,17 +448,73 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
     using namespace skr::SSL;
     if (auto body = funcDecl->body())
     {
-        sb.append(funcDecl->return_type()->name() + L" " + funcDecl->name() + L"(");
-        for (size_t i = 0; i < funcDecl->parameters().size(); i++)
+        const StageAttr* StageEntry = nullptr;
+        for (auto attr : funcDecl->attrs())
         {
-            auto param = funcDecl->parameters()[i];
-            String content = param->type().name() + L" " + param->name();
-            if (i > 0)
-                content = L", " + content;
-            sb.append(content);
+            if (auto s = dynamic_cast<const StageAttr*>(attr))
+                StageEntry = s;
         }
-        sb.endline(L')');
+
+        std::vector<const ParamVarDecl*> params = funcDecl->parameters();
+        if (StageEntry)
+        {
+            // extract bindings from signature
+            for (size_t i = 0; i < funcDecl->parameters().size(); i++)
+            {
+                auto param = funcDecl->parameters()[i];
+                for (auto attr : param->attrs())
+                {
+                    if (auto resourceBind = dynamic_cast<const ResourceBindAttr*>(attr))
+                    {
+                        String content = param->type().name() + L" " + param->name();
+                        // content += L" : register(" + std::to_wstring(bind_attr->binding()) + L")";
+                        sb.append(content);
+                        sb.endline(L';');
+
+                        params.erase(std::find(params.begin(), params.end(), param));
+                    }
+                }
+            }
+            // generate stage entry attributes
+            for (auto&& attr : funcDecl->attrs())
+            {
+                if (auto kernelSize = dynamic_cast<const KernelSizeAttr*>(attr))
+                {
+                    sb.append(L"[numthreads(" + std::to_wstring(kernelSize->x()) + L", " + std::to_wstring(kernelSize->y()) + L", " + std::to_wstring(kernelSize->z()) + L")]");
+                    sb.endline();
+                }
+            }
+        }
+        
+        // generate signature
+        {
+            sb.append(funcDecl->return_type()->name() + L" " + funcDecl->name() + L"(");
+            for (size_t i = 0; i < params.size(); i++)
+            {
+                auto param = params[i];
+                String content = param->type().name() + L" " + param->name();
+               
+                if (StageEntry)
+                {
+                    for (auto attr : param->attrs())
+                    {
+                        if (auto builtin_attr = dynamic_cast<const BuiltinAttr*>(attr))
+                        {
+                            content += L" : " + GetSVForBuiltin(builtin_attr->name());
+                        }
+                    }
+                }
+    
+                if (i > 0)
+                    content = L", " + content;
+                sb.append(content);
+            }
+            sb.endline(L')');
+        }
+
+        // generate body
         visitExpr(sb, funcDecl->body());
+        sb.endline();
     }
     else
     {
@@ -455,6 +525,7 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
 String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
 {
     using namespace skr::SSL;
+
     for (const auto& type : ast.types())
     {
         visit(sb, type);

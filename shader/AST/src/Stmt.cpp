@@ -3,7 +3,7 @@
 
 namespace skr::SSL {
 
-Stmt::Stmt(const AST& ast) : _ast(&ast) {}
+Stmt::Stmt(AST& ast) : _ast(&ast) {}
 
 void Stmt::add_child(const Stmt* child) 
 {
@@ -11,14 +11,14 @@ void Stmt::add_child(const Stmt* child)
     _children.emplace_back(child);
 }
 
-DeclStmt::DeclStmt(const AST& ast, Decl* decl) : Stmt(ast), _decl(decl) {}
+DeclStmt::DeclStmt(AST& ast, Decl* decl) : Stmt(ast), _decl(decl) {}
 
 DeclRefExpr* DeclStmt::ref() const
 {
     return const_cast<AST*>(_ast)->Ref(decl());
 }
 
-CompoundStmt::CompoundStmt(const AST& ast, std::span<Stmt* const> statements) 
+CompoundStmt::CompoundStmt(AST& ast, std::span<Stmt* const> statements) 
     : Stmt(ast)
 {
     for (auto& statement : statements)
@@ -32,7 +32,7 @@ void CompoundStmt::add_statement(Stmt* statement)
     add_child(statement);
 }
 
-IfStmt::IfStmt(const AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body)
+IfStmt::IfStmt(AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body)
     : Stmt(ast), _cond(cond), _then_body(then_body), _else_body(else_body)
 {
     add_child(cond);
@@ -42,7 +42,7 @@ IfStmt::IfStmt(const AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt
     }
 }
 
-ForStmt::ForStmt(const AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body)
+ForStmt::ForStmt(AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body)
     : Stmt(ast), _init(init), _cond(cond), _inc(inc), _body(body)
 {
     add_child(init);
@@ -51,32 +51,32 @@ ForStmt::ForStmt(const AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt
     add_child(body);
 }
 
-WhileStmt::WhileStmt(const AST& ast, Stmt* cond, CompoundStmt* body)
+WhileStmt::WhileStmt(AST& ast, Stmt* cond, CompoundStmt* body)
     : Stmt(ast), _cond(cond), _body(body)
 {
     add_child(cond);
     add_child(body);
 }
 
-BreakStmt::BreakStmt(const AST& ast)
+BreakStmt::BreakStmt(AST& ast)
     : Stmt(ast)
 {
 
 }
 
-ContinueStmt::ContinueStmt(const AST& ast)
+ContinueStmt::ContinueStmt(AST& ast)
     : Stmt(ast)
 {
 
 }
 
-DefaultStmt::DefaultStmt(const AST& ast)
+DefaultStmt::DefaultStmt(AST& ast)
     : Stmt(ast)
 {
 
 }
 
-SwitchStmt::SwitchStmt(const AST& ast, Stmt* cond, std::span<CaseStmt*> cases)
+SwitchStmt::SwitchStmt(AST& ast, Stmt* cond, std::span<CaseStmt*> cases)
     : Stmt(ast), _cond(cond), _cases(cases.begin(), cases.end())
 {
     add_child(cond);
@@ -86,20 +86,20 @@ SwitchStmt::SwitchStmt(const AST& ast, Stmt* cond, std::span<CaseStmt*> cases)
     }
 }
 
-CaseStmt::CaseStmt(const AST& ast, Stmt* cond, Stmt* body)
+CaseStmt::CaseStmt(AST& ast, Stmt* cond, Stmt* body)
     : Stmt(ast), _cond(cond), _body(body)
 {
     add_child(cond);
     add_child(body);
 }
 
-ReturnStmt::ReturnStmt(const AST& ast, Stmt* value)
+ReturnStmt::ReturnStmt(AST& ast, Stmt* value)
     : Stmt(ast), _value(value)
 {
     add_child(value);
 }
 
-ValueStmt::ValueStmt(const AST& ast)
+ValueStmt::ValueStmt(AST& ast)
     : Stmt(ast)
 {
 

@@ -4,14 +4,14 @@
 
 namespace skr::SSL {
 
-enum class UnaryOp : uint32_t {
+enum struct UnaryOp : uint32_t {
     PLUS,   // +x
     MINUS,  // -x
     NOT,    // !x
     BIT_NOT,// ~x
 };
 
-enum class BinaryOp : uint32_t {
+enum struct BinaryOp : uint32_t {
 
     // arithmetic
     ADD,
@@ -43,6 +43,20 @@ enum class BinaryOp : uint32_t {
     DIV_ASSIGN = 0x1004,
     MOD_ASSIGN = 0x1005,
 };
+
+enum struct ShaderStage : uint32_t
+{
+    Vertex,
+    Fragment,
+    Compute
+};
+
+enum struct BufferFlag : uint32_t
+{
+    Read = 0x1,
+    ReadWrite = 0x2,
+};
+using BufferFlags = uint32_t;
 
 // https://www.w3.org/TR/WGSL/#alignment-and-size
 struct alignas(2) GPUHalf
@@ -91,7 +105,6 @@ inline static constexpr int gpu_mat_align()
         return 16;
     return 8;
 }
-
 
 template <typename T, size_t N>
 struct alignas(gpu_vec_align<T, N>()) vec { T v[N]; };

@@ -4,28 +4,28 @@
 
 namespace skr::SSL {
 
-Expr::Expr(const AST& ast) : ValueStmt(ast) {}
+Expr::Expr(AST& ast) : ValueStmt(ast) {}
 
-BinaryExpr::BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op) 
+BinaryExpr::BinaryExpr(AST& ast, Expr* left, Expr* right, BinaryOp op) 
     : Expr(ast), _left(left), _right(right), _op(op) 
 {
     add_child(left);
     add_child(right);
 }
 
-CastExpr::CastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+CastExpr::CastExpr(AST& ast, const TypeDecl* type, Expr* expr) 
     : Expr(ast), _type(type), _expr(expr) 
 {
     add_child(expr);
 }
 
-BitwiseCastExpr::BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+BitwiseCastExpr::BitwiseCastExpr(AST& ast, const TypeDecl* type, Expr* expr) 
     : CastExpr(ast, type, expr)
 {
 
 }
 
-CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
+CallExpr::CallExpr(AST& ast, DeclRefExpr* callee, std::span<Expr*> args) 
     : Expr(ast), _callee(callee), _args(args.begin(), args.end()) 
 {
     add_child(callee);
@@ -33,51 +33,51 @@ CallExpr::CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args)
         add_child(arg);
 }
 
-ConstantExpr::ConstantExpr(const AST& ast, const IntValue& v) 
+ConstantExpr::ConstantExpr(AST& ast, const IntValue& v) 
     : Expr(ast), value(v) 
 {
 
 }
 
-ConstantExpr::ConstantExpr(const AST& ast, const FloatValue& v) 
+ConstantExpr::ConstantExpr(AST& ast, const FloatValue& v) 
     : Expr(ast), value(v)
 {
     
 }
 
-ConstructExpr::ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Expr*> args)
+ConstructExpr::ConstructExpr(AST& ast, const TypeDecl* type, std::span<Expr*> args)
     : Expr(ast), _type(type), _args(args.begin(), args.end())
 {
     for (auto arg : _args)
         add_child(arg);
 }
 
-DeclRefExpr::DeclRefExpr(const AST& ast, const Decl& decl) 
+DeclRefExpr::DeclRefExpr(AST& ast, const Decl& decl) 
     : Expr(ast), _decl(&decl) 
 {
 
 }
 
-ImplicitCastExpr::ImplicitCastExpr(const AST& ast, const TypeDecl* type, Expr* expr) 
+ImplicitCastExpr::ImplicitCastExpr(AST& ast, const TypeDecl* type, Expr* expr) 
     : CastExpr(ast, type, expr) 
 {
 
 }
 
-InitListExpr::InitListExpr(const AST& ast, std::span<Expr*> exprs) 
+InitListExpr::InitListExpr(AST& ast, std::span<Expr*> exprs) 
     : Expr(ast), _exprs(exprs.begin(), exprs.end()) 
 {
     for (auto expr : _exprs)
         add_child(expr);
 }
 
-MemberExpr::MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field)
+MemberExpr::MemberExpr(AST& ast, const DeclRefExpr* owner, const Decl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
     add_child(_owner);
 }
 
-FieldExpr::FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
+FieldExpr::FieldExpr(AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
     : MemberExpr(ast, owner, field)
 {
 
@@ -88,7 +88,7 @@ const FieldDecl* FieldExpr::field_decl() const
     return dynamic_cast<const FieldDecl*>(_member_decl);
 }
 
-MethodExpr::MethodExpr(const AST& ast, const DeclRefExpr* owner, const FunctionDecl* method)
+MethodExpr::MethodExpr(AST& ast, const DeclRefExpr* owner, const FunctionDecl* method)
     : MemberExpr(ast, owner, method)
 {
 
@@ -99,7 +99,7 @@ const MethodDecl* MethodExpr::method_decl() const
     return dynamic_cast<const MethodDecl*>(_member_decl);
 }
 
-MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args)
+MethodCallExpr::MethodCallExpr(AST& ast, const MemberExpr* callee, std::span<Expr*> args)
     : Expr(ast), _callee(callee), _args(args.begin(), args.end())
 {
     add_child(_callee);
@@ -107,13 +107,13 @@ MethodCallExpr::MethodCallExpr(const AST& ast, const MemberExpr* callee, std::sp
         add_child(arg);
 }
 
-StaticCastExpr::StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr)
+StaticCastExpr::StaticCastExpr(AST& ast, const TypeDecl* type, Expr* expr)
     : CastExpr(ast, type, expr)
 {
 
 }
 
-UnaryExpr::UnaryExpr(const AST& ast, UnaryOp op, Expr* expr)
+UnaryExpr::UnaryExpr(AST& ast, UnaryOp op, Expr* expr)
     : Expr(ast), _op(op), _expr(expr)
 {
     add_child(expr);

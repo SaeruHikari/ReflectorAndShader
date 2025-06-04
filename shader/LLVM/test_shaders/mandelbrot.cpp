@@ -31,9 +31,8 @@ float4 mandelbrot(uint2 tid, uint2 tsize) {
 
 [[kernel_2d(16, 16)]] 
 void kernel(
-    Buffer<float4>& output, 
-    [[system_value("DispatchThreadID")]] uint2 tid
-)
+    [[group(0), binding(0)]] Buffer<float4>& output,
+    [[builtin("ThreadID")]] uint2 tid)
 {
     const uint2 tsize = uint2(1024, 1024);
     const uint32 row_pitch = tsize.x;

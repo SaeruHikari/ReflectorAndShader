@@ -2,6 +2,7 @@
 #include <vector>
 #include <span>
 #include <string>
+#include "Enums.hpp"
 
 namespace skr::SSL {
 
@@ -24,7 +25,7 @@ public:
 
 protected:
     friend struct AST;
-    Stmt(const AST& ast);
+    Stmt(AST& ast);
     virtual ~Stmt() = default;
 
     void add_child(const Stmt* child);
@@ -41,7 +42,7 @@ public:
 
 protected:
     friend struct AST;
-    DeclStmt(const AST& ast, Decl* decl);
+    DeclStmt(AST& ast, Decl* decl);
     // TODO: DeclGroup
     Decl* _decl = nullptr;
 };
@@ -53,7 +54,7 @@ public:
     
 protected:
     friend struct AST;
-    CompoundStmt(const AST& ast, std::span<Stmt* const> statements);
+    CompoundStmt(AST& ast, std::span<Stmt* const> statements);
 };
 
 struct IfStmt final : Stmt
@@ -65,7 +66,7 @@ public:
 
 private:
     friend struct AST;
-    IfStmt(const AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body);
+    IfStmt(AST& ast, Stmt* cond, CompoundStmt* then_body, CompoundStmt* else_body);
     Stmt* _cond = nullptr;
     CompoundStmt* _then_body = nullptr;
     CompoundStmt* _else_body = nullptr;
@@ -81,7 +82,7 @@ public:
 
 private:
     friend struct AST;
-    ForStmt(const AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body);
+    ForStmt(AST& ast, Stmt* init, Stmt* cond, Stmt* inc, CompoundStmt* body);
     Stmt* _init = nullptr;
     Stmt* _cond = nullptr;
     Stmt* _inc = nullptr;
@@ -96,7 +97,7 @@ public:
 
 private:
     friend struct AST;
-    WhileStmt(const AST& ast, Stmt* cond, CompoundStmt* body);
+    WhileStmt(AST& ast, Stmt* cond, CompoundStmt* body);
     Stmt* _cond = nullptr;
     CompoundStmt* _body = nullptr;
 };
@@ -105,21 +106,21 @@ struct BreakStmt final : Stmt
 {
 private:
     friend struct AST;
-    BreakStmt(const AST& ast);
+    BreakStmt(AST& ast);
 };
 
 struct ContinueStmt final : Stmt
 {
 private:
     friend struct AST;
-    ContinueStmt(const AST& ast);
+    ContinueStmt(AST& ast);
 };
 
 struct DefaultStmt final : Stmt
 {
 private:
     friend struct AST;
-    DefaultStmt(const AST& ast);
+    DefaultStmt(AST& ast);
 };
 
 struct SwitchStmt final : Stmt
@@ -130,7 +131,7 @@ public:
 
 private:
     friend struct AST;
-    SwitchStmt(const AST& ast, Stmt* cond, std::span<CaseStmt*> cases);
+    SwitchStmt(AST& ast, Stmt* cond, std::span<CaseStmt*> cases);
     Stmt* _cond = nullptr;
     std::vector<CaseStmt*> _cases;
 };
@@ -143,7 +144,7 @@ public:
 
 private:
     friend struct AST;
-    CaseStmt(const AST& ast, Stmt* cond, Stmt* body);
+    CaseStmt(AST& ast, Stmt* cond, Stmt* body);
     Stmt* _cond = nullptr;
     Stmt* _body = nullptr;
 };
@@ -154,7 +155,7 @@ public:
     const Stmt* value() const { return _value; }
 protected:
     friend struct AST;
-    ReturnStmt(const AST& ast, Stmt* value);
+    ReturnStmt(AST& ast, Stmt* value);
     Stmt* _value = nullptr;
 };
 
@@ -162,7 +163,7 @@ struct ValueStmt : public Stmt
 {
     virtual ~ValueStmt() = default;
 protected:
-    ValueStmt(const AST& ast);
+    ValueStmt(AST& ast);
 };
 
 } // namespace skr::SSL

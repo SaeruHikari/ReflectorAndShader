@@ -19,7 +19,7 @@ public:
     virtual ~Expr() = default;
 
 protected:
-    Expr(const AST& ast);
+    Expr(AST& ast);
 };
 
 struct CastExpr : Expr
@@ -29,7 +29,7 @@ public:
     Expr* expr() const { return _expr; }
 
 protected:
-    CastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    CastExpr(AST& ast, const TypeDecl* type, Expr* expr);
     const TypeDecl* _type = nullptr;
     Expr* _expr = nullptr;
 };
@@ -38,7 +38,7 @@ struct BitwiseCastExpr : CastExpr
 {
 private:
     friend struct AST;
-    BitwiseCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    BitwiseCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
 struct BinaryExpr : Expr
@@ -50,7 +50,7 @@ public:
 
 private:
     friend struct AST;
-    BinaryExpr(const AST& ast, Expr* left, Expr* right, BinaryOp op);
+    BinaryExpr(AST& ast, Expr* left, Expr* right, BinaryOp op);
     Expr* _left = nullptr;
     Expr* _right = nullptr;
     const BinaryOp _op = BinaryOp::ADD;
@@ -63,7 +63,7 @@ public:
     std::span<Expr* const> args() const { return _args; }
 private:
     friend struct AST;
-    CallExpr(const AST& ast, DeclRefExpr* callee, std::span<Expr*> args);
+    CallExpr(AST& ast, DeclRefExpr* callee, std::span<Expr*> args);
     const DeclRefExpr* _callee = nullptr;
     std::vector<Expr*> _args;
 };
@@ -75,8 +75,8 @@ public:
 
 private:
     friend struct AST;
-    ConstantExpr(const AST& ast, const IntValue& v);
-    ConstantExpr(const AST& ast, const FloatValue& v);
+    ConstantExpr(AST& ast, const IntValue& v);
+    ConstantExpr(AST& ast, const FloatValue& v);
 };
 
 struct ConstructExpr : Expr
@@ -87,7 +87,7 @@ public:
 
 private:
     friend struct AST;
-    ConstructExpr(const AST& ast, const TypeDecl* type, std::span<Expr*> args);
+    ConstructExpr(AST& ast, const TypeDecl* type, std::span<Expr*> args);
     const TypeDecl* _type = nullptr;
     std::vector<Expr*> _args;
 };
@@ -99,7 +99,7 @@ public:
 
 private:
     friend struct AST;
-    DeclRefExpr(const AST& ast, const Decl& decl);
+    DeclRefExpr(AST& ast, const Decl& decl);
     const Decl* _decl = nullptr;
 };
 
@@ -107,14 +107,14 @@ struct ImplicitCastExpr : CastExpr
 {
 private:
     friend struct AST;
-    ImplicitCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    ImplicitCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
 struct InitListExpr : Expr
 {
 private:
     friend struct AST;
-    InitListExpr(const AST& ast, std::span<Expr*> exprs);
+    InitListExpr(AST& ast, std::span<Expr*> exprs);
     std::vector<Expr*> _exprs;
 };
 
@@ -125,7 +125,7 @@ public:
     const Decl* member_decl() const { return _member_decl; }
 
 protected:
-    MemberExpr(const AST& ast, const DeclRefExpr* owner, const Decl* field);
+    MemberExpr(AST& ast, const DeclRefExpr* owner, const Decl* field);
     const DeclRefExpr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
 };
@@ -137,7 +137,7 @@ public:
 
 private:
     friend struct AST;
-    FieldExpr(const AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
+    FieldExpr(AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
 };
 
 struct MethodExpr : MemberExpr
@@ -147,7 +147,7 @@ public:
     
 private:
     friend struct AST;
-    MethodExpr(const AST& ast, const DeclRefExpr* owner, const FunctionDecl* method);
+    MethodExpr(AST& ast, const DeclRefExpr* owner, const FunctionDecl* method);
 };
 
 struct MethodCallExpr : Expr
@@ -158,7 +158,7 @@ public:
 
 private:
     friend struct AST;
-    MethodCallExpr(const AST& ast, const MemberExpr* callee, std::span<Expr*> args);
+    MethodCallExpr(AST& ast, const MemberExpr* callee, std::span<Expr*> args);
     const MemberExpr* _callee = nullptr;
     std::vector<Expr*> _args;
 };
@@ -167,7 +167,7 @@ struct StaticCastExpr : CastExpr
 {
 private:
     friend struct AST;
-    StaticCastExpr(const AST& ast, const TypeDecl* type, Expr* expr);
+    StaticCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
 struct UnaryExpr : Expr
@@ -177,7 +177,7 @@ public:
     const Expr* expr() const { return _expr; }
 private:
     friend struct AST;
-    UnaryExpr(const AST& ast, UnaryOp op, Expr* expr);
+    UnaryExpr(AST& ast, UnaryOp op, Expr* expr);
     const UnaryOp _op = UnaryOp::PLUS;
     Expr* _expr = nullptr;
 };
