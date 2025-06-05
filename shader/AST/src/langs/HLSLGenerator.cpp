@@ -16,10 +16,22 @@ bool NeedParens(const Stmt* stmt)
     return false;
 }
 
-std::unordered_map<String, String> SystemValueMap = {
-    { L"ThreadID", L"SV_DispatchThreadID" }
+static const std::unordered_map<String, String> SystemValueMap = {
+    { L"VertexID", L"SV_VertexID" },     // VertexStage Input
+    { L"InstanceID", L"SV_InstanceID" }, // VertexStage Input
+    { L"Position", L"SV_Position" },     // VertexStage Output / FragmentStage Input
+
+    { L"IsFrontFace", L"SV_IsFrontFace" }, // FragmentStage Input
+    { L"FragmentDepth", L"SV_Depth"},      // FragmentStage Output
+    { L"SampleIndex", L"SV_SampleIndex" }, // FragmentStage Input
+    { L"SampleMask", L"SV_Coverage" },     // FragmentStage Input/Output
+
+    { L"ThreadID", L"SV_DispatchThreadID" },           // ComputeStage Input
+    { L"GroupID", L"SV_GroupID" },                     // ComputeStage Input
+    { L"ThreadPositionInGroup", L"SV_GroupThreadID" }, // ComputeStage Input
+    { L"ThreadIDInGroup", L"SV_GroupIndex" },         // ComputeStage Input
 };
-String UnknownSystemValue = L"UnknownSystemValue";
+static const String UnknownSystemValue = L"UnknownSystemValue";
 const String& GetSVForBuiltin(const String& builtin)
 {
     auto it = SystemValueMap.find(builtin);
