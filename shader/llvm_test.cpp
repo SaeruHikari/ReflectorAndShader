@@ -32,10 +32,11 @@ int main(int argc, const char **argv)
         exit_code = compiler->Run();
         const auto& AST = compiler->GetAST();
 
+        std::wcout << AST.dump() << std::endl;
+
         skr::SSL::SourceBuilderNew sb;
         skr::SSL::HLSLGenerator hlsl_generator;
         std::wcout << hlsl_generator.generate_code(sb, AST) << std::endl;
-        std::wcout << AST.dump() << std::endl;
 
         skr::SSL::ShaderCompiler::Destroy(compiler);
     }

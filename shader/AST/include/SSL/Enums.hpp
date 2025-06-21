@@ -15,6 +15,11 @@ enum struct UnaryOp : uint32_t {
     MINUS,  // -x
     NOT,    // !x
     BIT_NOT,// ~x
+
+    POST_INC, // x++
+    POST_DEC, // x--
+    PRE_INC,  // ++x
+    PRE_DEC,  // --x
 };
 
 enum struct BinaryOp : uint32_t {

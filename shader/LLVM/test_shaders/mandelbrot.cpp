@@ -33,11 +33,9 @@ float4 mandelbrot(uint2 tid, uint2 tsize) {
     return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
 }
 
-[[group(0), binding(0)]]
-extern Buffer<float4>& output;
 
 [[kernel_2d(16, 16)]] 
-void kernel([[builtin("ThreadID")]] uint2 tid)
+void kernel([[builtin("ThreadID")]] uint2 tid,  Buffer<float4>& output)
 {
     const uint2 tsize = uint2(1024, 1024);
     const uint32 row_pitch = tsize.x;
@@ -68,6 +66,7 @@ void kernel([[builtin("ThreadID")]] uint2 tid)
         return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
     };
     */
+    float4 c = mandelbrot(tid, tsize);
     output.store(tid.x + tid.y * row_pitch, mandelbrot(tid, tsize));
 }
 

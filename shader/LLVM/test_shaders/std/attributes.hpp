@@ -25,7 +25,7 @@
 #define builtin(name) clang::annotate("skr-shader", "builtin", (name))
 #define unaop(name) clang::annotate("skr-shader", "unaop", (name))
 #define binop(name) clang::annotate("skr-shader", "binop", (name))
-#define callop(name) clang::annotate("skr-shader", "callop", (name))
+#define callop(name) clang::annotate("skr-shader", "builtin", (name))
 #define ext_call(name) clang::annotate("skr-shader", "ext_call", (name))
 #define expr(name) clang::annotate("skr-shader", "expr", (name))
 

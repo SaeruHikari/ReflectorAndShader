@@ -132,6 +132,7 @@ MethodExpr* AST::Method(DeclRefExpr* base, const MethodDecl* method)
 
 DeclRefExpr* AST::Ref(const Decl* decl)
 {
+    assert(decl && "DeclRefExpr cannot be created with a null decl");
     auto expr = new DeclRefExpr(*this, *decl);
     _stmts.emplace_back(expr);
     return expr;
@@ -151,11 +152,25 @@ StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
     return cast;
 }
 
+SwizzleExpr* AST::Swizzle(Expr* expr, uint64_t comps, const uint64_t* seq)
+{
+    auto swizzle = new SwizzleExpr(*this, expr, comps, seq);
+    _stmts.emplace_back(swizzle);
+    return swizzle;
+}
+
 SwitchStmt* AST::Switch(Expr* cond, std::span<CaseStmt*> cases)
 {
     auto stmt = new SwitchStmt(*this, cond, cases);
     _stmts.emplace_back(stmt);
     return stmt;
+}
+
+ThisExpr* AST::This()
+{
+    auto expr = new ThisExpr(*this);
+    _stmts.emplace_back(expr);
+    return expr;
 }
 
 UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
@@ -329,6 +344,8 @@ AST::AST() :
     INIT_BUILTIN_TYPE(Bool, GPUBool, bool),
     INIT_VEC_TYPES(Bool, GPUBool, bool),
     // INIT_MATRIX_TYPE(Bool, GPUBool, bool),
+
+    INIT_BUILTIN_TYPE(Half, float, half),
 
     INIT_BUILTIN_TYPE(Float, float, float),
     INIT_VEC_TYPES(Float, float, float),

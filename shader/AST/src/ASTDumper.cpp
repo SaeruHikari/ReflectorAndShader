@@ -197,6 +197,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     else if (auto implicitCast = dynamic_cast<const ImplicitCastExpr*>(stmt))
     {
         sb.append_expr(L"ImplicitCastExpr ");
+        sb.append_type(implicitCast->type()->name());
         sb.endline();
     }
     else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
@@ -229,6 +230,13 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         sb.append_expr(L"SwitchStmt ");
         sb.endline();
     }
+    else if (auto swizzle = dynamic_cast<const SwizzleExpr*>(stmt))
+    {
+        sb.append_expr(L"SwizzleExpr ");
+        for (uint32_t i = 0; i < swizzle->seq().size(); i++)
+            sb.append(std::to_wstring(swizzle->seq()[i]));
+        sb.endline();
+    }
     else if (auto unary = dynamic_cast<const UnaryExpr*>(stmt))
     {
         auto op = unary->op();
@@ -246,6 +254,18 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
             break;
         case UnaryOp::BIT_NOT:
             op_name = L" ~ ";
+            break;
+        case UnaryOp::PRE_INC:
+            op_name = L" ++ ";
+            break;
+        case UnaryOp::PRE_DEC:
+            op_name = L" -- ";
+            break;
+        case UnaryOp::POST_INC:
+            op_name = L" ++ (postfix) ";
+            break;
+        case UnaryOp::POST_DEC:
+            op_name = L" -- (postfix) ";
             break;
         default:
             assert(false && "Unsupported unary operation");

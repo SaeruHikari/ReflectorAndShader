@@ -42,7 +42,9 @@ public:
     DeclRefExpr* Ref(const Decl* decl);
     ReturnStmt* Return(Expr* expr);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
+    SwizzleExpr* Swizzle(Expr* expr, uint64_t comps, const uint64_t* seq);
     SwitchStmt* Switch(Expr* cond, std::span<CaseStmt*> cases);
+    ThisExpr* This();
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
@@ -59,6 +61,8 @@ public:
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
 
     ByteBufferTypeDecl* const ByteBuffer(BufferFlags flags);
+    // TODO: for scalar, float2/4 types
+    // Buffer* const Buffer(TypeDecl* const element, BufferFlags flags);
     StructuredBufferTypeDecl* const StructuredBuffer(TypeDecl* const element, BufferFlags flags);
     // TypeDecl* const TextureType(TypeDecl* const element);
 
@@ -122,6 +126,7 @@ public:
     VEC_TYPES(Bool);
     MATRIX_TYPES(Bool);
 
+    TypeDecl* const HalfType = nullptr;
     TypeDecl* const FloatType = nullptr;
     VEC_TYPES(Float);
     MATRIX_TYPES(Float);

@@ -163,11 +163,32 @@ private:
     std::vector<Expr*> _args;
 };
 
+struct SwizzleExpr : Expr
+{
+public:
+    const Expr* expr() const { return _expr; }
+    std::span<const uint64_t> seq() const { return std::span<const uint64_t>(_seq, _comps); }
+
+private:
+    friend struct AST;
+    SwizzleExpr(AST& ast, Expr* expr, uint64_t comps, const uint64_t* seq);
+    uint64_t _seq[4];
+    uint64_t _comps = 0u;
+    Expr* _expr = nullptr;
+};
+
 struct StaticCastExpr : CastExpr
 {
 private:
     friend struct AST;
     StaticCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
+};
+
+struct ThisExpr final : Expr
+{
+private:
+    friend struct AST;
+    ThisExpr(AST& ast);
 };
 
 struct UnaryExpr : Expr

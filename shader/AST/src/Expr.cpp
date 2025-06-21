@@ -107,10 +107,24 @@ MethodCallExpr::MethodCallExpr(AST& ast, const MemberExpr* callee, std::span<Exp
         add_child(arg);
 }
 
+SwizzleExpr::SwizzleExpr(AST& ast, Expr* expr, uint64_t comps, const uint64_t* seq)
+    : Expr(ast), _expr(expr), _comps(comps)
+{
+    for (uint32_t i = 0; i < comps; i++)
+        _seq[i] = seq[i];
+    add_child(_expr);
+}
+
 StaticCastExpr::StaticCastExpr(AST& ast, const TypeDecl* type, Expr* expr)
     : CastExpr(ast, type, expr)
 {
 
+}
+
+ThisExpr::ThisExpr(AST& ast)
+    : Expr(ast)
+{
+    
 }
 
 UnaryExpr::UnaryExpr(AST& ast, UnaryOp op, Expr* expr)

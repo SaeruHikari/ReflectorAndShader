@@ -337,7 +337,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     }
     else if (auto implicitCast = dynamic_cast<const ImplicitCastExpr*>(stmt))
     {
-        // do nothing ...
+        visitExpr(sb, implicitCast->expr());
     }
     else if (auto declRef = dynamic_cast<const DeclRefExpr*>(stmt))
     {
@@ -379,6 +379,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 
         {
             String op_name = L"";
+            bool post = false;
             switch (unary->op())
             {
             case UnaryOp::PLUS:
@@ -393,12 +394,30 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
             case UnaryOp::BIT_NOT:
                 op_name = L"~";
                 break;
+            case UnaryOp::PRE_INC:
+                op_name = L"++";
+                break;
+            case UnaryOp::PRE_DEC:
+                op_name = L"--";
+                break;
+            case UnaryOp::POST_INC:
+                op_name = L"++";
+                post = true;
+                break;
+            case UnaryOp::POST_DEC:
+                op_name = L"--";
+                post = true;
+                break;
             default:
                 assert(false && "Unsupported unary operation");
             }
-            
-            sb.append(op_name);
+            if (!post)
+                sb.append(op_name);
+
             visitExpr(sb, unary->expr());
+            
+            if (post)
+                sb.append(op_name);
         }
 
         if (needParens)
@@ -418,9 +437,23 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         sb.append(L") ");
         visitExpr(sb, whileStmt->body());
     }
+    else if (auto swizzle = dynamic_cast<const SwizzleExpr*>(stmt))
+    {
+        visitExpr(sb, swizzle->expr());
+        sb.append(L".");
+        for (auto comp : swizzle->seq())
+        {
+            skr::SSL::String comps[4] = { L"x", L"y", L"z", L"w" };
+            sb.append(comps[comp]);
+        }
+    }
+    else if (auto thisExpr = dynamic_cast<const ThisExpr*>(stmt))
+    {
+        sb.append(L"/*this->*/");
+    }
     else
     {
-        sb.append_expr(L"UnknownExpr ");
+        sb.append(L"[UnknownExpr]");
     }
 
     if (isStatement)
