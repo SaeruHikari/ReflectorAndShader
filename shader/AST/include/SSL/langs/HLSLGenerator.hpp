@@ -13,5 +13,6 @@ private:
     void visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt);
     void visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl);
     void visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* funcDecl);
+    void visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl);
 };
 } // namespace skr::SSL

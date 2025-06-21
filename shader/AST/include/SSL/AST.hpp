@@ -51,6 +51,7 @@ public:
     TypeDecl* const DeclareType(const Name& name, std::span<FieldDecl*> members);
     TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
     ArrayTypeDecl* const DeclareArrayType(TypeDecl* const element, uint32_t count);
+    GlobalConstantDecl* const DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
@@ -97,6 +98,7 @@ public:
     std::span<Decl* const> decls() const { return _decls; }
     std::span<Stmt* const> stmts() const { return _stmts; }
     std::span<TypeDecl* const> types() const { return _types; }
+    std::span<GlobalConstantDecl* const> global_constants() const { return _globals; }
     std::span<FunctionDecl* const> funcs() const { return _funcs; }
 
     String dump() const;
@@ -106,6 +108,7 @@ private:
     std::vector<Stmt*> _stmts;
     std::unordered_map<TypeDecl*, BufferTypeDecl*> _buffers;
     std::vector<TypeDecl*> _types;
+    std::vector<GlobalConstantDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;
     std::vector<MethodDecl*> _methods;
     std::vector<Attr*> _attrs;

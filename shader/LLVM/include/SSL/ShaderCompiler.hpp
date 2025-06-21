@@ -1,6 +1,7 @@
 #pragma once
 
 namespace skr::SSL {
+struct AST;
 
 struct ShaderCompiler
 {
@@ -8,7 +9,8 @@ struct ShaderCompiler
     static void Destroy(ShaderCompiler* compiler);
 
     virtual int Run() = 0;
-    
+    virtual const AST& GetAST() const = 0;
+
     virtual ~ShaderCompiler() = default;
 };
 

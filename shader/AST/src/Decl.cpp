@@ -183,6 +183,12 @@ ArrayTypeDecl::ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count)
 
 }
 
+GlobalConstantDecl::GlobalConstantDecl(AST& ast, const TypeDecl* type, const Name& _name, ConstantExpr* initializer)
+    : VarDecl(ast, type, _name, initializer)
+{
+
+}
+
 ParamVarDecl::ParamVarDecl(AST& ast, const TypeDecl* type, const Name& name)
     : VarDecl(ast, type, name)
 {

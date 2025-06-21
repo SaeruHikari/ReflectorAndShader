@@ -408,12 +408,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     {
         if (auto decl = dynamic_cast<const VarDecl*>(declStmt->decl()))
         {
-            sb.append(decl->type().name() + L" " + decl->name());
-            if (auto init = decl->initializer())
-            {
-                sb.append(L" = ");
-                visitExpr(sb, init);
-            }
+            visit(sb, decl);
         }
     }
     else if (auto whileStmt = dynamic_cast<const WhileStmt*>(stmt))
@@ -534,6 +529,19 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
     }
 }
 
+void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl)
+{
+    if (const bool isGlobalConstant = dynamic_cast<const skr::SSL::GlobalConstantDecl*>(varDecl))
+        sb.append(L"static const ");
+
+    sb.append(varDecl->type().name() + L" " + varDecl->name());
+    if (auto init = varDecl->initializer())
+    {
+        sb.append(L" = ");
+        visitExpr(sb, init);
+    }
+}
+
 String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
 {
     using namespace skr::SSL;
@@ -541,6 +549,12 @@ String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
     for (const auto& type : ast.types())
     {
         visit(sb, type);
+    }
+    
+    for (const auto& constant : ast.global_constants())
+    {
+        visit(sb, constant);
+        sb.endline(L';');
     }
     
     for (const auto& func : ast.funcs())

@@ -2,6 +2,9 @@
 #include <string>
 #include "SSL/ShaderCompiler.hpp"
 
+#include "SSL/langs/HLSLGenerator.hpp"
+#include "SSL/AST.hpp"
+
 int main(int argc, const char **argv)
 {
     std::vector<std::string> args;
@@ -27,6 +30,13 @@ int main(int argc, const char **argv)
     if (compiler)
     {
         exit_code = compiler->Run();
+        const auto& AST = compiler->GetAST();
+
+        skr::SSL::SourceBuilderNew sb;
+        skr::SSL::HLSLGenerator hlsl_generator;
+        std::wcout << hlsl_generator.generate_code(sb, AST) << std::endl;
+        std::wcout << AST.dump() << std::endl;
+
         skr::SSL::ShaderCompiler::Destroy(compiler);
     }
     return exit_code;

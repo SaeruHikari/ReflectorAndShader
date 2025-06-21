@@ -367,7 +367,8 @@ void ASTDumper::visit(const skr::SSL::FunctionDecl* funcDecl, SourceBuilderNew& 
 void ASTDumper::visit(const skr::SSL::VarDecl* varDecl, SourceBuilderNew& sb)
 {
     using namespace skr::SSL;
-    sb.append_decl(L"VarDecl ");
+    const bool isGlobalConstant = dynamic_cast<const skr::SSL::GlobalConstantDecl*>(varDecl) != nullptr;
+    sb.append_decl(isGlobalConstant ? L"GlobalConstantDecl " : L"VarDecl ");
     sb.append(varDecl->name());
     sb.endline();
 
@@ -430,6 +431,10 @@ String AST::dump() const
     for (auto type : types())
     {
         content += type->dump();
+    }
+    for (auto constant : global_constants())
+    {
+        content += constant->dump();
     }
     for (auto func : funcs())
     {

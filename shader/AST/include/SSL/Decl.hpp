@@ -9,6 +9,7 @@ struct Expr;
 struct TypeDecl;
 struct FieldDecl;
 struct MethodDecl;
+struct ConstantExpr;
 
 struct Decl
 {
@@ -126,12 +127,22 @@ protected:
     ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count);
 };
 
+struct GlobalConstantDecl : public VarDecl
+{
+public:
+    const TypeDecl& type() const { return *_type; }
+    
+protected:
+    friend struct AST;
+    GlobalConstantDecl(AST& ast, const TypeDecl* type, const Name& _name, ConstantExpr* initializer);
+};
+
 struct ParamVarDecl : public VarDecl
 {
 public:
     const TypeDecl& type() const { return *_type; }
 
-    protected:
+protected:
     friend struct AST;    
     ParamVarDecl(AST& ast, const TypeDecl* type, const Name& _name);
 };

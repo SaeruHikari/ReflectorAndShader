@@ -220,6 +220,14 @@ ArrayTypeDecl* const AST::DeclareArrayType(TypeDecl* const element, uint32_t cou
     return new_type;
 }
 
+GlobalConstantDecl* const AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
+{
+    auto decl = new GlobalConstantDecl(*this, type, name, initializer);
+    _decls.emplace_back(decl);
+    _globals.emplace_back(decl);
+    return decl;
+}
+
 FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 {
     auto decl = new FieldDecl(*this, name, type);
