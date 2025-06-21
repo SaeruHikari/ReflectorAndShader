@@ -120,7 +120,7 @@ struct DefaultStmt final : Stmt
 {
 private:
     friend struct AST;
-    DefaultStmt(AST& ast);
+    DefaultStmt(AST& ast, CompoundStmt* body);
 };
 
 struct SwitchStmt final : Stmt

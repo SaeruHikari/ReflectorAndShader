@@ -32,7 +32,7 @@ public:
     ConstantExpr* Constant(const FloatValue& v);
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     ContinueStmt* Continue();
-    DefaultStmt* Default();
+    DefaultStmt* Default(CompoundStmt* body);
     FieldExpr* Field(DeclRefExpr* base, const FieldDecl* field);
     ForStmt* For(Stmt* init, Expr* cond, Stmt* inc, CompoundStmt* body);
     IfStmt* If(Expr* cond, CompoundStmt* then_body, CompoundStmt* else_body = nullptr);
@@ -44,18 +44,19 @@ public:
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
     SwitchStmt* Switch(Expr* cond, std::span<CaseStmt*> cases);
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
-    DeclStmt* Variable(const TypeDecl* type, Expr* initializer = nullptr);
-    DeclStmt* Variable(const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
+    DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer = nullptr);
+    DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     WhileStmt* While(Expr* cond, CompoundStmt* body);
 
     TypeDecl* const DeclareType(const Name& name, std::span<FieldDecl*> members);
     TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
     ArrayTypeDecl* const DeclareArrayType(TypeDecl* const element, uint32_t count);
-    GlobalConstantDecl* const DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
+    GlobalVarDecl* const DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
+    GlobalVarDecl* const DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
-    ParamVarDecl* DeclareParam(const TypeDecl* type, const Name& name);
+    ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
 
     ByteBufferTypeDecl* const ByteBuffer(BufferFlags flags);
     StructuredBufferTypeDecl* const StructuredBuffer(TypeDecl* const element, BufferFlags flags);
@@ -98,7 +99,7 @@ public:
     std::span<Decl* const> decls() const { return _decls; }
     std::span<Stmt* const> stmts() const { return _stmts; }
     std::span<TypeDecl* const> types() const { return _types; }
-    std::span<GlobalConstantDecl* const> global_constants() const { return _globals; }
+    std::span<GlobalVarDecl* const> global_vars() const { return _globals; }
     std::span<FunctionDecl* const> funcs() const { return _funcs; }
 
     String dump() const;
@@ -108,7 +109,7 @@ private:
     std::vector<Stmt*> _stmts;
     std::unordered_map<TypeDecl*, BufferTypeDecl*> _buffers;
     std::vector<TypeDecl*> _types;
-    std::vector<GlobalConstantDecl*> _globals;
+    std::vector<GlobalVarDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;
     std::vector<MethodDecl*> _methods;
     std::vector<Attr*> _attrs;

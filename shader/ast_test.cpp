@@ -8,22 +8,25 @@
 void mandelbrot(skr::SSL::AST& AST)
 {
     using namespace skr::SSL;
-    std::vector<ParamVarDecl*> cos_params = { AST.DeclareParam(AST.Float3Type, L"v") };
+    std::vector<ParamVarDecl*> cos_params = { AST.DeclareParam(EVariableQualifier::None, AST.Float3Type, L"v") };
     auto cos_func = AST.DeclareFunction(L"cos", AST.Float3Type, cos_params, nullptr);
-    std::vector<ParamVarDecl*> dot_params = { AST.DeclareParam(AST.Float2Type, L"a"), AST.DeclareParam(AST.Float2Type, L"b") };
+    std::vector<ParamVarDecl*> dot_params = { 
+        AST.DeclareParam(EVariableQualifier::None, AST.Float2Type, L"a"), 
+        AST.DeclareParam(EVariableQualifier::None, AST.Float2Type, L"b") 
+    };
     auto dot_func = AST.DeclareFunction(L"dot", AST.FloatType, dot_params, nullptr);
 
     using namespace skr::SSL;
     FunctionDecl* mandelbrot = nullptr;
     {
-        auto tid = AST.DeclareParam(AST.UInt2Type, L"tid");
-        auto tsize = AST.DeclareParam(AST.UInt2Type, L"tsize");
+        auto tid = AST.DeclareParam(EVariableQualifier::None, AST.UInt2Type, L"tid");
+        auto tsize = AST.DeclareParam(EVariableQualifier::None, AST.UInt2Type, L"tsize");
         std::vector<ParamVarDecl*> mandelbrot_params = { tid, tsize };
         auto mandelbrot_body = AST.Block({});
         mandelbrot = AST.DeclareFunction(L"mandelbrot", AST.Float4Type, mandelbrot_params, mandelbrot_body);
         
         // const float x = float(tid.x) / (float)tsize.x;
-        auto x = AST.Variable(AST.FloatType, L"x", 
+        auto x = AST.Variable(EVariableQualifier::Const, AST.FloatType, L"x", 
             AST.Div(
                 AST.StaticCast(AST.FloatType, AST.Field(tid->ref(), AST.UInt2Type->get_field(L"x"))), 
                 AST.StaticCast(AST.FloatType, AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x")))
@@ -31,7 +34,7 @@ void mandelbrot(skr::SSL::AST& AST)
         mandelbrot_body->add_statement(x);
         
         // const float y = float(tid.y) / (float)tsize.y;
-        auto y = AST.Variable(AST.FloatType, L"y",
+        auto y = AST.Variable(EVariableQualifier::Const, AST.FloatType, L"y",
             AST.Div(
                 AST.StaticCast(AST.FloatType, AST.Field(tid->ref(), AST.UInt2Type->get_field(L"y"))), 
                 AST.StaticCast(AST.FloatType, AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"y")))
@@ -40,11 +43,11 @@ void mandelbrot(skr::SSL::AST& AST)
 
         // const float2 uv = float2(x, y);
         std::vector<Expr*> uv_inits = { x->ref(), y->ref() }; 
-        auto uv = AST.Variable(AST.Float2Type, L"uv", AST.Construct(AST.Float2Type, uv_inits));
+        auto uv = AST.Variable(EVariableQualifier::Const, AST.Float2Type, L"uv", AST.Construct(AST.Float2Type, uv_inits));
         mandelbrot_body->add_statement(uv);
 
         // float n = 0.0f;
-        auto n = AST.Variable(AST.FloatType, L"n", AST.Constant(FloatValue("0.0f")));
+        auto n = AST.Variable(EVariableQualifier::None, AST.FloatType, L"n", AST.Constant(FloatValue("0.0f")));
         mandelbrot_body->add_statement(n);
 
         // float2 c = float2(-0.444999992847442626953125f, 0.0f);
@@ -52,7 +55,7 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("-0.444999992847442626953125f")),
             AST.Constant(FloatValue("0.0f"))
         };
-        auto c = AST.Variable(AST.Float2Type, L"c", AST.Construct(AST.Float2Type, c_inits));
+        auto c = AST.Variable(EVariableQualifier::None, AST.Float2Type, L"c", AST.Construct(AST.Float2Type, c_inits));
         mandelbrot_body->add_statement(c);
 
         // c = c + (uv - float2(0.5f, 0.5f)) * 2.3399999141693115234375f;
@@ -72,11 +75,11 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("0.f")),
             AST.Constant(FloatValue("0.f"))
         };
-        auto z = AST.Variable(AST.Float2Type, L"z", AST.InitList(z_inits));
+        auto z = AST.Variable(EVariableQualifier::None, AST.Float2Type, L"z", AST.InitList(z_inits));
         mandelbrot_body->add_statement(z);
 
         // const int M = 128;
-        auto M = AST.Variable(AST.IntType, L"M", AST.Constant(IntValue(128)));
+        auto M = AST.Variable(EVariableQualifier::Const, AST.IntType, L"M", AST.Constant(IntValue(128)));
         mandelbrot_body->add_statement(M);
 
         // TODO: FOR LOOP
@@ -89,7 +92,7 @@ void mandelbrot(skr::SSL::AST& AST)
                 n += 1.0f;
             }
         */
-        auto for_init = AST.Variable(AST.IntType, L"i", AST.Constant(IntValue(0)));
+        auto for_init = AST.Variable(EVariableQualifier::None, AST.IntType, L"i", AST.Constant(IntValue(0)));
         auto for_cond = AST.Less(for_init->ref(), AST.Unary(UnaryOp::PLUS, M->ref()));
         auto for_inc = AST.AddAssign(for_init->ref(), AST.Constant(IntValue(1)));
         auto for_body = AST.Block({});
@@ -123,7 +126,7 @@ void mandelbrot(skr::SSL::AST& AST)
         mandelbrot_body->add_statement(AST.For(for_init, for_cond, for_inc, for_body));
 
         // const float t = float(n) / float(M);
-        auto t = AST.Variable(AST.FloatType, L"t", AST.Div(n->ref(), AST.StaticCast(AST.FloatType, M->ref())));
+        auto t = AST.Variable(EVariableQualifier::Const, AST.FloatType, L"t", AST.Div(n->ref(), AST.StaticCast(AST.FloatType, M->ref())));
         mandelbrot_body->add_statement(t);
 
         // const float3 d = float3(0.3f, 0.3f, 0.5f);
@@ -132,7 +135,7 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("0.3f")),
             AST.Constant(FloatValue("0.5f"))
         };
-        auto d = AST.Variable(AST.Float3Type, L"d", AST.Construct(AST.Float3Type, d_inits));
+        auto d = AST.Variable(EVariableQualifier::Const, AST.Float3Type, L"d", AST.Construct(AST.Float3Type, d_inits));
         mandelbrot_body->add_statement(d);
         
         // const float3 e = float3(-0.2f, -0.3f, -0.5f);
@@ -141,7 +144,7 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("-0.3f")),
             AST.Constant(FloatValue("-0.5f"))
         };
-        auto e = AST.Variable(AST.Float3Type, L"e", AST.Construct(AST.Float3Type, e_inits));
+        auto e = AST.Variable(EVariableQualifier::Const, AST.Float3Type, L"e", AST.Construct(AST.Float3Type, e_inits));
         mandelbrot_body->add_statement(e);
 
         // const float3 f = float3(2.1f, 2.0f, 3.0f);
@@ -150,7 +153,7 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("2.0f")),
             AST.Constant(FloatValue("3.0f"))
         };
-        auto f = AST.Variable(AST.Float3Type, L"f", AST.Construct(AST.Float3Type, f_inits));
+        auto f = AST.Variable(EVariableQualifier::Const, AST.Float3Type, L"f", AST.Construct(AST.Float3Type, f_inits));
         mandelbrot_body->add_statement(f);
 
         // const float3 g = float3(0.0f, 0.1f, 0.0f);
@@ -159,7 +162,7 @@ void mandelbrot(skr::SSL::AST& AST)
             AST.Constant(FloatValue("0.1f")),
             AST.Constant(FloatValue("0.0f"))
         };
-        auto g = AST.Variable(AST.Float3Type, L"g", AST.Construct(AST.Float3Type, g_inits));
+        auto g = AST.Variable(EVariableQualifier::Const, AST.Float3Type, L"g", AST.Construct(AST.Float3Type, g_inits));
         mandelbrot_body->add_statement(g);
 
         // return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
@@ -174,20 +177,20 @@ void mandelbrot(skr::SSL::AST& AST)
     }
     {
         auto kernel_body = AST.Block({});
-        auto sv_tid = AST.DeclareParam(AST.UInt2Type, L"tid");
+        auto sv_tid = AST.DeclareParam(EVariableQualifier::Const, AST.UInt2Type, L"tid");
         sv_tid->add_attr(AST.DeclareAttr<BuiltinAttr>(L"ThreadID"));
-        auto output_buf = AST.DeclareParam(AST.StructuredBuffer(AST.Float4Type, (uint32_t)BufferFlag::ReadWrite), L"output");
+        auto output_buf = AST.DeclareGlobalResource(AST.StructuredBuffer(AST.Float4Type, (uint32_t)BufferFlag::ReadWrite), L"output");
         output_buf->add_attr(AST.DeclareAttr<ResourceBindAttr>());
-        std::vector<ParamVarDecl*> kernel_params = { sv_tid, output_buf };
+        std::vector<ParamVarDecl*> kernel_params = { sv_tid };
         auto kernel = AST.DeclareFunction(L"kernel", AST.VoidType, kernel_params, kernel_body);
         kernel->add_attr(AST.DeclareAttr<StageAttr>(ShaderStage::Compute));
         kernel->add_attr(AST.DeclareAttr<KernelSizeAttr>(32, 32, 1));
 
         // const uint2 tsize = uint2(1024, 1024);
         std::vector<Expr*> tsize_inits = { AST.Constant(IntValue(1024)), AST.Constant(IntValue(1024)) };
-        auto tsize = AST.Variable(AST.UInt2Type, L"tsize", AST.Construct(AST.UInt2Type, tsize_inits));
+        auto tsize = AST.Variable(EVariableQualifier::Const, AST.UInt2Type, L"tsize", AST.Construct(AST.UInt2Type, tsize_inits));
         kernel_body->add_statement(tsize);
-        auto row_pitch = AST.Variable(AST.UIntType, L"row_pitch", AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x")));
+        auto row_pitch = AST.Variable(EVariableQualifier::Const, AST.UIntType, L"row_pitch", AST.Field(tsize->ref(), AST.UInt2Type->get_field(L"x")));
         kernel_body->add_statement(row_pitch);
         
         // output.store(tid.x + tid.y * row_pitch, mandelbrot(tid, tsize));
@@ -205,48 +208,6 @@ void mandelbrot(skr::SSL::AST& AST)
         );
         kernel_body->add_statement(output_store);
     }
-}
-
-void some_test(skr::SSL::AST& AST)
-{
-    using namespace skr::SSL;
-    auto fields = std::vector<FieldDecl*>();
-    fields.emplace_back(AST.DeclareField(L"i", AST.IntType));
-    auto DataType = AST.DeclareType(L"Data", fields);
-    auto Method = AST.DeclareMethod(DataType, L"do_something", AST.VoidType, {}, nullptr);
-    DataType->add_method(Method);
-
-    auto param = AST.DeclareParam(AST.Float4Type, L"param");
-    auto param_ref = (Expr*)param->ref();
-    std::vector<Expr*> inits = {
-        AST.StaticCast(AST.FloatType, AST.Constant(FloatValue("0.f"))),
-        AST.ImplicitCast(AST.FloatType, AST.Constant(FloatValue("1.f"))),
-        AST.BitwiseCast(AST.FloatType, AST.Constant(FloatValue("2.f"))),
-        AST.Unary(UnaryOp::PLUS, AST.Constant(FloatValue("3.f")))
-    };
-    auto a = AST.Variable(AST.Float4Type, L"a", AST.InitList(inits));
-    auto b = AST.Variable(AST.FloatType, L"b");
-    auto c = AST.Variable(AST.Float4Type, L"c");
-    auto init_a = AST.Assign(a->ref(), AST.Constant(FloatValue("3.5f")));
-    auto init_b = AST.Assign(AST.Unary(UnaryOp::PLUS, b->ref()), AST.Constant(FloatValue("5.5f")));
-    auto init_c = AST.Assign(c->ref(), AST.Add(a->ref(), b->ref()));
-
-    auto d = AST.Variable(AST.Float4Type, L"d");
-    auto init_d = AST.Assign(d->ref(), param->ref());
-    auto modify_d = AST.Assign(
-        AST.Field(d->ref(), AST.Float4Type->get_field(L"x")),
-        AST.Field(d->ref(), AST.Float4Type->get_field(L"y"))
-    );
-    
-    auto data = AST.Variable(DataType, L"data", AST.InitList({}));
-    auto test_field = AST.Assign(AST.Field(data->ref(), fields[0]), AST.Constant(IntValue(2)));
-
-    auto block = AST.Block({ a, b, c, init_a, init_b, init_c, d, init_d, modify_d, data, test_field });
-    auto func = AST.DeclareFunction(L"main", AST.IntType, std::span(&param, 1), block);
-
-    Expr* construct = AST.Construct(AST.Float4Type, inits);
-    block->add_statement(AST.CallMethod(AST.Method(data->ref(), Method), {}));
-    block->add_statement(AST.CallFunction(func->ref(), std::span<Expr*>(&construct, 1)));
 }
 
 int main()

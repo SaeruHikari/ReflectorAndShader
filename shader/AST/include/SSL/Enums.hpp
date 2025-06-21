@@ -4,6 +4,12 @@
 
 namespace skr::SSL {
 
+enum struct EVariableQualifier : uint32_t {
+    None = 0,
+    Const = 1,
+    Inout = 2
+};
+
 enum struct UnaryOp : uint32_t {
     PLUS,   // +x
     MINUS,  // -x

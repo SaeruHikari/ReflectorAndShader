@@ -41,7 +41,7 @@ void kernel([[builtin("ThreadID")]] uint2 tid)
 {
     const uint2 tsize = uint2(1024, 1024);
     const uint32 row_pitch = tsize.x;
-
+    /*
     auto mandelbrot = [&]() {
         const float x = float(tid.x) / (float)tsize.x;
         const float y = float(tid.y) / (float)tsize.y;
@@ -67,7 +67,8 @@ void kernel([[builtin("ThreadID")]] uint2 tid)
         const float3 g = float3(0.0f, 0.1f, 0.0f);
         return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
     };
-    output.store(tid.x + tid.y * row_pitch, mandelbrot());
+    */
+    output.store(tid.x + tid.y * row_pitch, mandelbrot(tid, tsize));
 }
 
 } // namespace skr::shader

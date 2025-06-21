@@ -28,8 +28,8 @@ const Stmt* VarDecl::body() const
     return nullptr;
 }
 
-VarDecl::VarDecl(AST& ast, const TypeDecl* type, const Name& name, Expr* initializer)
-    : Decl(ast), _type(type), _name(name), _initializer(initializer)
+VarDecl::VarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer)
+    : Decl(ast), _qualifier(qualifier), _type(type), _name(name), _initializer(initializer)
 {
 
 }
@@ -111,8 +111,14 @@ MethodDecl* TypeDecl::get_method(const Name& name) const
     return nullptr;
 }
 
+ResourceTypeDecl::ResourceTypeDecl(AST& ast, const String& name)
+    : TypeDecl(ast, name, 0, 0, {}, true)
+{
+
+}
+
 BufferTypeDecl::BufferTypeDecl(AST& ast, const String& name, BufferFlags flags)
-    : TypeDecl(ast, name, 0, 0, {}, true), _flags(flags)
+    : ResourceTypeDecl(ast, name), _flags(flags)
 {
 
 }
@@ -122,7 +128,7 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
 {
     this->add_method(ast.DeclareMethod(this, L"GetCount", ast.UIntType, {}, nullptr));
 
-    std::vector<ParamVarDecl*> address = { ast.DeclareParam(ast.UIntType, L"address") };
+    std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
     this->add_method(ast.DeclareMethod(this, L"Load", ast.UIntType, address, nullptr));
     this->add_method(ast.DeclareMethod(this, L"Load2", ast.UInt2Type, address, nullptr));
     this->add_method(ast.DeclareMethod(this, L"Load3", ast.UInt3Type, address, nullptr));
@@ -136,8 +142,8 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
         this->add_method(ast.DeclareMethod(this, L"Store4", ast.VoidType, address, nullptr));
 
         std::vector<ParamVarDecl*> ps0 = {
-            ast.DeclareParam(ast.UIntType, L"dest"),
-            ast.DeclareParam(ast.UIntType, L"value")
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"dest"),
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"value")
         };
         this->add_method(ast.DeclareMethod(this, L"InterlockedAdd", ast.UIntType, ps0, nullptr));
         this->add_method(ast.DeclareMethod(this, L"InterlockedAnd", ast.UIntType, ps0, nullptr));
@@ -148,9 +154,9 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
         this->add_method(ast.DeclareMethod(this, L"InterlockedExchange", ast.UIntType, ps0, nullptr));
 
         std::vector<ParamVarDecl*> ps1 = {
-            ast.DeclareParam(ast.UIntType, L"dest"),
-            ast.DeclareParam(ast.UIntType, L"compare"),
-            ast.DeclareParam(ast.UIntType, L"value")
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"dest"),
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"compare"),
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"value")
         };
         this->add_method(ast.DeclareMethod(this, L"InterlockedCompareStore", ast.VoidType, ps1, nullptr));
         this->add_method(ast.DeclareMethod(this, L"InterlockedCompareExchange", ast.UIntType, ps1, nullptr));
@@ -164,14 +170,14 @@ StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, TypeDecl* const ele
 {
     this->add_method(ast.DeclareMethod(this, L"GetCount", element, {}, nullptr));
     
-    std::vector<ParamVarDecl*> address = { ast.DeclareParam(ast.UIntType, L"address") };
+    std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
     this->add_method(ast.DeclareMethod(this, L"Load", element, address, nullptr));
 
     if (flags & (uint32_t)BufferFlag::ReadWrite)
     {
         std::vector<ParamVarDecl*> address_val = { 
-            ast.DeclareParam(ast.UIntType, L"address"),
-            ast.DeclareParam(element, L"value")
+            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address"),
+            ast.DeclareParam(EVariableQualifier::None, element, L"value")
         };
         this->add_method(ast.DeclareMethod(this, L"Store", ast.VoidType, address_val, nullptr));
     }
@@ -183,14 +189,14 @@ ArrayTypeDecl::ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count)
 
 }
 
-GlobalConstantDecl::GlobalConstantDecl(AST& ast, const TypeDecl* type, const Name& _name, ConstantExpr* initializer)
-    : VarDecl(ast, type, _name, initializer)
+GlobalVarDecl::GlobalVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& _name, ConstantExpr* initializer)
+    : VarDecl(ast, qualifier, type, _name, initializer)
 {
 
 }
 
-ParamVarDecl::ParamVarDecl(AST& ast, const TypeDecl* type, const Name& name)
-    : VarDecl(ast, type, name)
+ParamVarDecl::ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& name)
+    : VarDecl(ast, qualifier, type, name)
 {
 
 }

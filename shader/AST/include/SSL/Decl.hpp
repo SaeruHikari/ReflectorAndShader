@@ -34,11 +34,13 @@ public:
     const TypeDecl& type() const { return *_type; }
     String name() const { return _name; }
     Expr* initializer() const { return _initializer; }
+    EVariableQualifier qualifier() const { return _qualifier; }
     const Stmt* body() const override;
     
 protected:
     friend struct AST;    
-    VarDecl(AST& ast, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
+    VarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
+    EVariableQualifier _qualifier = EVariableQualifier::None; // the qualifier of the variable (e.g., const, in, out, etc.)
     const TypeDecl* _type = nullptr;
     Name _name = L"__INVALID_VAR__";
     Expr* _initializer = nullptr;
@@ -90,7 +92,13 @@ protected:
     std::vector<MethodDecl*> _methods;
 };
 
-struct BufferTypeDecl : public TypeDecl
+struct ResourceTypeDecl : public TypeDecl
+{
+protected:
+    ResourceTypeDecl(AST& ast, const String& name);
+};
+
+struct BufferTypeDecl : public ResourceTypeDecl
 {
 public:
     const auto flags() const { return _flags; }
@@ -127,14 +135,14 @@ protected:
     ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count);
 };
 
-struct GlobalConstantDecl : public VarDecl
+struct GlobalVarDecl : public VarDecl
 {
 public:
     const TypeDecl& type() const { return *_type; }
     
 protected:
     friend struct AST;
-    GlobalConstantDecl(AST& ast, const TypeDecl* type, const Name& _name, ConstantExpr* initializer);
+    GlobalVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& _name, ConstantExpr* initializer);
 };
 
 struct ParamVarDecl : public VarDecl
@@ -144,7 +152,7 @@ public:
 
 protected:
     friend struct AST;    
-    ParamVarDecl(AST& ast, const TypeDecl* type, const Name& _name);
+    ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& _name);
 };
 
 struct FunctionDecl : public Decl

@@ -81,9 +81,9 @@ ContinueStmt* AST::Continue()
     return stmt;
 }
 
-DefaultStmt* AST::Default()
+DefaultStmt* AST::Default(CompoundStmt* body)
 {
-    auto stmt = new DefaultStmt(*this);
+    auto stmt = new DefaultStmt(*this, body);
     _stmts.emplace_back(stmt);
     return stmt;
 }
@@ -165,15 +165,17 @@ UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
     return unary;
 }
 
-DeclStmt* AST::Variable(const TypeDecl* type, Expr* initializer) 
+DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer) 
 {  
     auto decl_name = L"decl" + std::to_wstring(_decls.size());
-    return Variable(type, decl_name, initializer); 
+    return Variable(qualifier, type, decl_name, initializer); 
 }
 
-DeclStmt* AST::Variable(const TypeDecl* type, const Name& name, Expr* initializer) 
+DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer) 
 {  
-    auto decl = new VarDecl(*this, type, name, initializer);
+    assert(qualifier != EVariableQualifier::Inout && "Inout qualifier is not allowed for variable declarations");
+    
+    auto decl = new VarDecl(*this, qualifier, type, name, initializer);
     _decls.emplace_back(decl);
 
     auto stmt = new DeclStmt(*this, decl);
@@ -220,9 +222,19 @@ ArrayTypeDecl* const AST::DeclareArrayType(TypeDecl* const element, uint32_t cou
     return new_type;
 }
 
-GlobalConstantDecl* const AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
+GlobalVarDecl* const AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
 {
-    auto decl = new GlobalConstantDecl(*this, type, name, initializer);
+    // TODO: CHECK THIS IS NOT RESOURCE TYPE
+    auto decl = new GlobalVarDecl(*this, EVariableQualifier::Const, type, name, initializer);
+    _decls.emplace_back(decl);
+    _globals.emplace_back(decl);
+    return decl;
+}
+
+GlobalVarDecl* const AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
+{
+    // TODO: CHECK THIS IS RESOURCE TYPE
+    auto decl = new GlobalVarDecl(*this, EVariableQualifier::None, type, name, nullptr);
     _decls.emplace_back(decl);
     _globals.emplace_back(decl);
     return decl;
@@ -251,9 +263,9 @@ FunctionDecl* AST::DeclareFunction(const Name& name, TypeDecl* const return_type
     return decl;
 }
 
-ParamVarDecl* AST::DeclareParam(const TypeDecl* type, const Name& name)
+ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name)
 {
-    auto decl = new ParamVarDecl(*this, type, name);
+    auto decl = new ParamVarDecl(*this, qualifier, type, name);
     _decls.emplace_back(decl);
     return decl;
 }
@@ -307,24 +319,8 @@ std::vector<FieldDecl*> DeclareFields(AST* ast, const TypeDecl* type, Args&&... 
     symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z", L"w")))
 
 #define INIT_MATRIX_TYPE(symbol, type, name) \
-    symbol##1x1Type(DeclarePrimitiveType(USTR(name##1x1), sizeof(matrix<type, 1, 1>), alignof(matrix<type, 1, 1>))), \
-    symbol##1x2Type(DeclarePrimitiveType(USTR(name##1x2), sizeof(matrix<type, 1, 2>), alignof(matrix<type, 1, 2>))), \
-    symbol##1x3Type(DeclarePrimitiveType(USTR(name##1x3), sizeof(matrix<type, 1, 3>), alignof(matrix<type, 1, 3>))), \
-    symbol##1x4Type(DeclarePrimitiveType(USTR(name##1x4), sizeof(matrix<type, 1, 4>), alignof(matrix<type, 1, 4>))), \
-    \
-    symbol##2x1Type(DeclarePrimitiveType(USTR(name##2x1), sizeof(matrix<type, 2, 1>), alignof(matrix<type, 2, 1>))), \
     symbol##2x2Type(DeclarePrimitiveType(USTR(name##2x2), sizeof(matrix<type, 2, 2>), alignof(matrix<type, 2, 2>))), \
-    symbol##2x3Type(DeclarePrimitiveType(USTR(name##2x3), sizeof(matrix<type, 2, 3>), alignof(matrix<type, 2, 3>))), \
-    symbol##2x4Type(DeclarePrimitiveType(USTR(name##2x4), sizeof(matrix<type, 2, 4>), alignof(matrix<type, 2, 4>))), \
-    \
-    symbol##3x1Type(DeclarePrimitiveType(USTR(name##3x1), sizeof(matrix<type, 3, 1>), alignof(matrix<type, 3, 1>))), \
-    symbol##3x2Type(DeclarePrimitiveType(USTR(name##3x2), sizeof(matrix<type, 3, 2>), alignof(matrix<type, 3, 2>))), \
     symbol##3x3Type(DeclarePrimitiveType(USTR(name##3x3), sizeof(matrix<type, 3, 3>), alignof(matrix<type, 3, 3>))), \
-    symbol##3x4Type(DeclarePrimitiveType(USTR(name##3x4), sizeof(matrix<type, 3, 4>), alignof(matrix<type, 3, 4>))), \
-    \
-    symbol##4x1Type(DeclarePrimitiveType(USTR(name##4x1), sizeof(matrix<type, 4, 1>), alignof(matrix<type, 4, 1>))), \
-    symbol##4x2Type(DeclarePrimitiveType(USTR(name##4x2), sizeof(matrix<type, 4, 2>), alignof(matrix<type, 4, 2>))), \
-    symbol##4x3Type(DeclarePrimitiveType(USTR(name##4x3), sizeof(matrix<type, 4, 3>), alignof(matrix<type, 4, 3>))), \
     symbol##4x4Type(DeclarePrimitiveType(USTR(name##4x4), sizeof(matrix<type, 4, 4>), alignof(matrix<type, 4, 4>)))
 
 AST::AST() : 
@@ -332,7 +328,7 @@ AST::AST() :
     
     INIT_BUILTIN_TYPE(Bool, GPUBool, bool),
     INIT_VEC_TYPES(Bool, GPUBool, bool),
-    INIT_MATRIX_TYPE(Bool, GPUBool, bool),
+    // INIT_MATRIX_TYPE(Bool, GPUBool, bool),
 
     INIT_BUILTIN_TYPE(Float, float, float),
     INIT_VEC_TYPES(Float, float, float),
@@ -340,11 +336,11 @@ AST::AST() :
 
     INIT_BUILTIN_TYPE(Int, int32_t, int),
     INIT_VEC_TYPES(Int, int32_t, int),
-    INIT_MATRIX_TYPE(Int, int32_t, int),
+    // INIT_MATRIX_TYPE(Int, int32_t, int),
 
     INIT_BUILTIN_TYPE(UInt, uint32_t, uint),
     INIT_VEC_TYPES(UInt, uint32_t, uint),
-    INIT_MATRIX_TYPE(UInt, uint32_t, uint),
+    // INIT_MATRIX_TYPE(UInt, uint32_t, uint),
 
     INIT_BUILTIN_TYPE(Double, double, double),
     INIT_BUILTIN_TYPE(I64, int64_t, int64),

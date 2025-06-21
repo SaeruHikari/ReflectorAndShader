@@ -70,10 +70,10 @@ ContinueStmt::ContinueStmt(AST& ast)
 
 }
 
-DefaultStmt::DefaultStmt(AST& ast)
+DefaultStmt::DefaultStmt(AST& ast, CompoundStmt* body)
     : Stmt(ast)
 {
-
+    add_child(body);
 }
 
 SwitchStmt::SwitchStmt(AST& ast, Stmt* cond, std::span<CaseStmt*> cases)

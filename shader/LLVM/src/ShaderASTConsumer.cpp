@@ -1,19 +1,39 @@
 #include "DebugASTVisitor.hpp"
 #include "ShaderASTConsumer.hpp"
 #include <clang/Frontend/CompilerInstance.h>
-
 #include <clang/AST/Stmt.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/DeclTemplate.h>
+#include <format>
 
 namespace skr::SSL {
 
-inline static void ReportFatalError(const std::string& message)
+inline void ASTConsumer::ReportFatalError(const std::string& message)
 {
     llvm::report_fatal_error(message.c_str());
 }
 
-inline static String ToString(clang::StringRef str)
+template <typename... Args>
+inline void ASTConsumer::ReportFatalError(std::format_string<Args...> _fmt, Args&&... args)
+{
+    auto message = std::format(_fmt, std::forward<Args>(args)...);
+    llvm::report_fatal_error(message.c_str());
+}
+
+template <typename... Args>
+inline void ASTConsumer::ReportFatalError(const clang::Stmt* expr, std::format_string<Args...> _fmt, Args&&... args)
+{
+    DumpWithLocation(expr);
+    ReportFatalError(_fmt, std::forward<Args>(args)...);
+}
+
+void ASTConsumer::DumpWithLocation(const clang::Stmt *stmt)
+{
+    stmt->getBeginLoc().dump(pASTContext->getSourceManager());
+    stmt->dump();
+}
+
+inline static String ToText(clang::StringRef str)
 {
     return String(str.begin(), str.end());
 }
@@ -49,6 +69,7 @@ inline static clang::AnnotateAttr* ExistShaderAttrWithName(const clang::Decl* de
 inline static clang::AnnotateAttr* IsIgnore(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "ignore"); }
 inline static clang::AnnotateAttr* IsBuiltin(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "builtin"); }
 inline static clang::AnnotateAttr* IsDump(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "dump"); }
+inline static clang::AnnotateAttr* IsKernel(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "kernel"); }
 
 CompileFrontendAction::CompileFrontendAction(skr::SSL::AST& AST)
     : clang::ASTFrontendAction(), AST(AST)
@@ -76,8 +97,10 @@ ASTConsumer::~ASTConsumer()
 // clang::DeclRefExpr* cap;
 // cap->refersToEnclosingVariableOrCapture();
 
-void ASTConsumer::HandleTranslationUnit(clang::ASTContext &Context)
+void ASTConsumer::HandleTranslationUnit(clang::ASTContext& Context)
 {
+    pASTContext = &Context;
+    
     DebugASTVisitor debug = {};
     debug.TraverseDecl(Context.getTranslationUnitDecl());
 
@@ -111,8 +134,7 @@ bool ASTConsumer::VisitEnumDecl(clang::EnumDecl* enumDecl)
     {
         const auto I = E->getInitVal().getLimitedValue();
         auto VarName = (EnumName + "__" + E->getName()).str();
-        skr::SSL::String Name(VarName.begin(), VarName.end());
-        AST.DeclareGlobalConstant(UnderlyingType, Name, AST.Constant(IntValue(I)));
+        AST.DeclareGlobalConstant(UnderlyingType, ToText(VarName), AST.Constant(IntValue(I)));
     }
 
     return true;
@@ -195,7 +217,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
     if (getType(Type))
         ReportFatalError("Duplicate type declaration: " + std::string(recordDecl->getName()));
 
-    auto NewType = AST.DeclareType(ToString(recordDecl->getName()), {});
+    auto NewType = AST.DeclareType(ToText(recordDecl->getName()), {});
     for (auto field : recordDecl->fields())
     {
         if (IsDump(field)) 
@@ -205,18 +227,172 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         auto fieldType = desugaredFTy->getAs<clang::Type>();
 
         if (auto ft = getType(fieldType))
-        {
-            std::string_view name_v = field->getName();
-            skr::SSL::String name(name_v.begin(), name_v.end());
-            NewType->add_field(AST.DeclareField(name, ft));
-        }
+            NewType->add_field(AST.DeclareField(ToText(field->getName()), ft));
         else
-        {
             ReportFatalError("Unknown field type: " + std::string(fieldType->getTypeClassName()) + " for field: " + field->getName().str());
-        }
     } 
     addType(Type, NewType);
     return true;
+}
+
+bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
+{
+    if (IsKernel(x))
+    {
+        auto CxxFunctionName = x->getQualifiedNameAsString();
+        std::replace(CxxFunctionName.begin(), CxxFunctionName.end(), ':', '_');
+        AST.DeclareFunction(ToText(CxxFunctionName),
+            getType(x->getReturnType().getTypePtr()),
+            {},
+            traverseStmt<SSL::CompoundStmt>(x->getBody())
+        );
+    }
+    return true;
+}
+
+template <typename T>
+T* ASTConsumer::traverseStmt(const clang::Stmt *x) 
+{
+    return (T*)traverseStmt(x);
+}
+
+Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x) 
+{
+    using namespace clang;
+    using namespace skr;
+
+    if (x == nullptr) 
+        return nullptr;
+
+    if (auto cxxBranch = llvm::dyn_cast<clang::IfStmt>(x)) 
+    {
+        auto cxxCond = cxxBranch->getCond();
+        auto ifConstVar = cxxCond->getIntegerConstantExpr(*pASTContext);
+        if (ifConstVar) {
+            if (ifConstVar->getExtValue() != 0) {
+                if (cxxBranch->getThen())
+                    traverseStmt(cxxBranch->getThen());
+            } else {
+                if (cxxBranch->getElse())
+                    traverseStmt(cxxBranch->getElse());
+            }
+        } else {
+            auto _cond = traverseStmt<SSL::Expr>(cxxCond);
+            auto _then = traverseStmt<SSL::CompoundStmt>(cxxBranch->getThen());
+            auto _else = traverseStmt<SSL::CompoundStmt>(cxxBranch->getElse());
+            return AST.If(_cond, _then, _else);
+        }
+    } 
+    else if (auto cxxSwitch = llvm::dyn_cast<clang::SwitchStmt>(x)) 
+    {
+        std::vector<SSL::CaseStmt*> cases;
+        std::vector<const clang::SwitchCase*> cxxCases;
+        if (auto caseList = cxxSwitch->getSwitchCaseList()) 
+        {
+            while (caseList) {
+                cxxCases.emplace_back(caseList);
+                caseList = caseList->getNextSwitchCase();
+            }
+            std::reverse(cxxCases.begin(), cxxCases.end());
+            cases.reserve(cxxCases.size());
+            for (auto cxxCase : cxxCases)
+                cases.emplace_back(traverseStmt<SSL::CaseStmt>(cxxCase));
+        }
+        return AST.Switch(traverseStmt<SSL::Expr>(cxxSwitch->getCond()), cases);
+    } 
+    else if (auto cxxCase = llvm::dyn_cast<clang::CaseStmt>(x)) 
+    {
+        return AST.Case(traverseStmt<SSL::Expr>(cxxCase->getLHS()), traverseStmt<SSL::CompoundStmt>(cxxCase->getSubStmt()));
+    } 
+    else if (auto cxxDefault = llvm::dyn_cast<clang::DefaultStmt>(x)) 
+    {
+        auto _body = traverseStmt<SSL::CompoundStmt>(cxxDefault->getSubStmt());
+        return AST.Default(_body);
+    } 
+    else if (auto cxxContinue = llvm::dyn_cast<clang::ContinueStmt>(x)) 
+    {
+        return AST.Continue();
+    } 
+    else if (auto cxxBreak = llvm::dyn_cast<clang::BreakStmt>(x)) 
+    {
+        return AST.Break();
+    } 
+    else if (auto cxxWhile = llvm::dyn_cast<clang::WhileStmt>(x)) 
+    {
+        auto _cond = traverseStmt<SSL::Expr>(cxxWhile->getCond());
+        return AST.While(_cond, traverseStmt<SSL::CompoundStmt>(cxxWhile->getBody()));
+    } 
+    else if (auto cxxFor = llvm::dyn_cast<clang::ForStmt>(x)) 
+    {
+        auto _init = traverseStmt(cxxFor->getInit());
+        auto _cond = traverseStmt<SSL::Expr>(cxxFor->getCond());
+        auto _inc = traverseStmt(cxxFor->getInc());
+        auto _body = traverseStmt<SSL::CompoundStmt>(cxxFor->getBody());
+        return AST.For(_init, _cond, _inc, _body);
+    } 
+    else if (auto cxxCompound = llvm::dyn_cast<clang::CompoundStmt>(x)) 
+    {
+        std::vector<SSL::Stmt*> stmts;
+        stmts.reserve(cxxCompound->size());
+        for (auto sub : cxxCompound->body())
+            stmts.emplace_back(traverseStmt(sub));
+        return AST.Block(std::move(stmts));
+    }
+    else if (auto cxxExprWithCleanup = llvm::dyn_cast<clang::ExprWithCleanups>(x))
+    {
+        return traverseStmt(cxxExprWithCleanup->getSubExpr());
+    }
+    ///////////////////////////////////// EXPRS ///////////////////////////////////////////
+    else if (auto cxxLambda = llvm::dyn_cast<LambdaExpr>(x)) 
+    {
+        ReportFatalError("Lambda expressions are not supported in skr-shader.");
+        return nullptr;
+    }
+    else if (auto cxxDecl = llvm::dyn_cast<clang::DeclStmt>(x)) 
+    {
+        const DeclGroupRef declGroup = cxxDecl->getDeclGroup();
+        for (auto decl : declGroup) {
+            if (!decl) continue;
+
+            if (auto *varDecl = dyn_cast<clang::VarDecl>(decl)) {
+                auto Ty = varDecl->getType();
+                auto cxxInit = varDecl->getInit();
+                const bool isConst = varDecl->getType().isConstQualified();
+                const bool isRef = Ty->isReferenceType();
+                const bool isArray = Ty->getAsArrayTypeUnsafe();
+                if (isRef || isArray) {
+                    if (isRef)
+                        ReportFatalError(x, "VarDecl as reference type is not supported: [{}]", Ty.getAsString());
+                    if (isArray)
+                        ReportFatalError(x, "VarDecl as C-style array type is not supported: [{}]", Ty.getAsString());
+                }
+                if (auto SSLType = getType(Ty.getCanonicalType().getTypePtr()))
+                {
+                    auto _init = traverseStmt<SSL::Expr>(cxxInit);
+                    auto _name = SSL::String(varDecl->getName().begin(), varDecl->getName().end());
+                    AST.Variable(isConst ? SSL::EVariableQualifier::Const : SSL::EVariableQualifier::None, SSLType, _name, _init);
+                } 
+                else
+                    ReportFatalError("VarDecl with unfound type: [{}]", Ty.getAsString());
+            } else if (auto aliasDecl = dyn_cast<clang::TypeAliasDecl>(decl)) {          // ignore
+            } else if (auto staticAssertDecl = dyn_cast<clang::StaticAssertDecl>(decl)) {// ignore
+            } else {
+                ReportFatalError(x, "unsupported decl stmt: {}", cxxDecl->getStmtClassName());
+            }
+        }
+    }
+    else if (auto cxxImplicitCast = llvm::dyn_cast<clang::ImplicitCastExpr>(x))
+    {
+        auto SSLType = getType(cxxImplicitCast->getType().getTypePtr());
+        return AST.ImplicitCast(SSLType, traverseStmt<SSL::Expr>(cxxImplicitCast->getSubExpr()));
+    }
+    else if (auto cxxTempObject = llvm::dyn_cast<clang::CXXConstructExpr>(x))
+    {
+
+    }
+
+    ReportFatalError(x, "unsupported stmt: {}", x->getStmtClassName());
+    return nullptr;
 }
 
 bool ASTConsumer::addType(const clang::Type* type, skr::SSL::TypeDecl* decl)

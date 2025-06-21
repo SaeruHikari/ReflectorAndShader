@@ -531,8 +531,10 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
 
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl)
 {
-    if (const bool isGlobalConstant = dynamic_cast<const skr::SSL::GlobalConstantDecl*>(varDecl))
-        sb.append(L"static const ");
+    if (varDecl->qualifier() == EVariableQualifier::Const)
+        sb.append(L"const ");
+    else if (varDecl->qualifier() == EVariableQualifier::Inout)
+        sb.append(L"inout ");
 
     sb.append(varDecl->type().name() + L" " + varDecl->name());
     if (auto init = varDecl->initializer())
@@ -551,9 +553,9 @@ String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
         visit(sb, type);
     }
     
-    for (const auto& constant : ast.global_constants())
+    for (const auto& global : ast.global_vars())
     {
-        visit(sb, constant);
+        visit(sb, global);
         sb.endline(L';');
     }
     
