@@ -1,4 +1,5 @@
-#include "SSL/langs/HLSLGenerator.hpp"
+#include "SSL/langs/MSLGenerator.hpp"
+#include "SSL/langs/MSLGenerator.hpp"
 
 namespace skr::SSL
 {
@@ -16,33 +17,33 @@ inline static bool NeedParens(const Stmt* stmt)
     return false;
 }
 
-static const std::unordered_map<String, String> SystemValueMap = {
-    { L"VertexID", L"SV_VertexID" },     // VertexStage Input
-    { L"InstanceID", L"SV_InstanceID" }, // VertexStage Input
-    { L"Position", L"SV_Position" },     // VertexStage Output / FragmentStage Input
+static const std::unordered_map<String, String> MetalAttrMap = {
+    { L"VertexID", L"[[vertex_id]]" },     // VertexStage Input
+    { L"InstanceID", L"[[instance_id]]" }, // VertexStage Input
+    { L"Position", L"[[position]]" },      // VertexStage Output / FragmentStage Input
 
-    { L"IsFrontFace", L"SV_IsFrontFace" }, // FragmentStage Input
-    { L"FragmentDepth", L"SV_Depth"},      // FragmentStage Output
-    { L"SampleIndex", L"SV_SampleIndex" }, // FragmentStage Input
-    { L"SampleMask", L"SV_Coverage" },     // FragmentStage Input/Output
+    { L"IsFrontFace", L"[[front_facing]]" }, // FragmentStage Input
+    { L"FragmentDepth", L"[[depth(any)]]"},  // FragmentStage Output
+    { L"SampleIndex", L"[[sample_id]]" },    // FragmentStage Input
+    { L"SampleMask", L"[[sample_mask]]" },   // FragmentStage Input/Output
 
-    { L"ThreadID", L"SV_DispatchThreadID" },           // ComputeStage Input
-    { L"GroupID", L"SV_GroupID" },                     // ComputeStage Input
-    { L"ThreadPositionInGroup", L"SV_GroupThreadID" }, // ComputeStage Input
-    { L"ThreadIDInGroup", L"SV_GroupIndex" },         // ComputeStage Input
+    { L"ThreadID", L"[[thread_position_in_grid]]" },           // ComputeStage Input
+    { L"GroupID", L"[[threadgroup_position_in_grid]]" },                     // ComputeStage Input
+    { L"ThreadPositionInGroup", L"[[thread_position_in_threadgroup]]" }, // ComputeStage Input
+    { L"ThreadIDInGroup", L"[[thread_index_in_threadgroup]]" },         // ComputeStage Input
 };
 static const String UnknownSystemValue = L"UnknownSystemValue";
-const String& GetSVForBuiltin(const String& builtin)
+const String& GetMetalAttrForBuiltin(const String& builtin)
 {
-    auto it = SystemValueMap.find(builtin);
-    if (it != SystemValueMap.end())
+    auto it = MetalAttrMap.find(builtin);
+    if (it != MetalAttrMap.end())
     {
         return it->second;
     }
     return UnknownSystemValue; // return the original name if not found
 }
 
-void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
+void MSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 {
     using namespace skr::SSL;
 
@@ -432,7 +433,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         sb.endline(L';');
 }
 
-void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl)
+void MSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl)
 {
     using namespace skr::SSL;
     if (typeDecl->is_builtin())
@@ -455,7 +456,7 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
     }        
 }
 
-void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* funcDecl)
+void MSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* funcDecl)
 {
     using namespace skr::SSL;
     if (auto body = funcDecl->body())
@@ -512,7 +513,7 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
                     {
                         if (auto builtin_attr = dynamic_cast<const BuiltinAttr*>(attr))
                         {
-                            content += L" : " + GetSVForBuiltin(builtin_attr->name());
+                            content += L" " + GetMetalAttrForBuiltin(builtin_attr->name());
                         }
                     }
                 }
@@ -534,7 +535,7 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
     }
 }
 
-String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
+String MSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
 {
     using namespace skr::SSL;
 
