@@ -121,12 +121,12 @@ private:
 struct MemberExpr : Expr
 {
 public:
-    const DeclRefExpr* owner() const { return _owner; }
+    const Expr* owner() const { return _owner; }
     const Decl* member_decl() const { return _member_decl; }
 
 protected:
-    MemberExpr(AST& ast, const DeclRefExpr* owner, const Decl* field);
-    const DeclRefExpr* _owner = nullptr;
+    MemberExpr(AST& ast, const Expr* owner, const Decl* field);
+    const Expr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
 };
 
@@ -137,7 +137,7 @@ public:
 
 private:
     friend struct AST;
-    FieldExpr(AST& ast, const DeclRefExpr* owner, const FieldDecl* field);
+    FieldExpr(AST& ast, const Expr* owner, const FieldDecl* field);
 };
 
 struct MethodExpr : MemberExpr

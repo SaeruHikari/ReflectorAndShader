@@ -144,6 +144,7 @@ inline static clang::AnnotateAttr* IsSwizzle(const clang::Decl* decl) { return E
 inline static clang::AnnotateAttr* IsUnaOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "unaop"); }
 inline static clang::AnnotateAttr* IsBinOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "binop"); }
 inline static clang::AnnotateAttr* IsCallOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "builtin"); }
+inline static clang::AnnotateAttr* IsAccess(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "access"); }
 
 CompileFrontendAction::CompileFrontendAction(skr::SSL::AST& AST)
     : clang::ASTFrontendAction(), AST(AST)
@@ -339,6 +340,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         else
             ReportFatalError("Unknown field type: " + std::string(fieldType->getTypeClassName()) + " for field: " + field->getName().str());
     } 
+    
     addType(Type, NewType);
     return true;
 }
@@ -355,13 +357,12 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
     if (IsDump(x))
         x->dump();
     
-    if (getFunc(x) || IsIgnore(x) || IsBuiltin(x))
+    if (auto Existed = getFunc(x))
+        return Existed;
+    if (IsIgnore(x) || IsBuiltin(x))
         return nullptr;
     if (LanguageRule_UseAssignForImplicitCopyOrMove(x))
         return nullptr;
-
-    auto CxxFunctionName = x->getQualifiedNameAsString();
-    std::replace(CxxFunctionName.begin(), CxxFunctionName.end(), ':', '_');
 
     std::vector<SSL::ParamVarDecl*> params;
     params.reserve(x->getNumParams());
@@ -380,11 +381,60 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
         );
         addVar(param, p);
     }
-    auto F = AST.DeclareFunction(ToText(CxxFunctionName),
-        getType(x->getReturnType().getTypePtr()),
-        params,
-        traverseStmt<SSL::CompoundStmt>(x->getBody())
-    );
+    SSL::FunctionDecl* F = nullptr;
+    auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x);
+    if (AsMethod && !AsMethod->isStatic())
+    {
+        auto ownerType = getType(AsMethod->getParent()->getTypeForDecl());
+        if (auto AsCtor = llvm::dyn_cast<clang::CXXConstructorDecl>(AsMethod))
+        {
+            if (ownerType->is_builtin())
+                return nullptr;
+
+            auto body = traverseStmt<SSL::CompoundStmt>(x->getBody());
+            body = body ? body : AST.Block({});
+            for (auto ctor_init : AsCtor->inits())
+            {
+                auto F = ctor_init->getMember();
+                auto I = ctor_init->getMember()->getFieldIndex();
+                auto N = ToText(F->getDeclName().getAsString());
+                body->add_statement(
+                    AST.Assign(
+                        AST.Field(AST.This(), ownerType->get_field(N)),
+                        (SSL::Expr*)traverseStmt(ctor_init->getInit())
+                    )
+                );
+            }
+            F = AST.DeclareConstructor(
+                ownerType,
+                L"ctor",
+                params,
+                body
+            );
+            ownerType->add_ctor((SSL::ConstructorDecl*)F);
+        }
+        else
+        {
+            F = AST.DeclareMethod(
+                ownerType,
+                ToText(AsMethod->getName()),
+                getType(x->getReturnType().getTypePtr()),
+                params,
+                traverseStmt<SSL::CompoundStmt>(x->getBody())
+            );
+            ownerType->add_method((SSL::MethodDecl*)F);
+        }
+    }
+    else
+    {
+        auto CxxFunctionName = x->getQualifiedNameAsString();
+        std::replace(CxxFunctionName.begin(), CxxFunctionName.end(), ':', '_');
+        F = AST.DeclareFunction(ToText(CxxFunctionName),
+            getType(x->getReturnType().getTypePtr()),
+            params,
+            traverseStmt<SSL::CompoundStmt>(x->getBody())
+        );
+    }
     addFunc(x, F);
     return F;
 }
@@ -410,10 +460,10 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         if (ifConstVar) {
             if (ifConstVar->getExtValue() != 0) {
                 if (cxxBranch->getThen())
-                    traverseStmt(cxxBranch->getThen());
+                    return traverseStmt(cxxBranch->getThen());
             } else {
                 if (cxxBranch->getElse())
-                    traverseStmt(cxxBranch->getElse());
+                    return traverseStmt(cxxBranch->getElse());
             }
         } else {
             auto _cond = traverseStmt<SSL::Expr>(cxxCond);
@@ -524,13 +574,35 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         auto _cxxDecl = cxxDeclRef->getDecl();
         if (auto Function = llvm::dyn_cast<clang::FunctionDecl>(_cxxDecl))
         {
-            if (!recordFunction(Function))
-                ReportFatalError(x, "Function declaration with unfound type: [{}]", Function->getType().getAsString());
             return AST.Ref(getFunc(Function));
         }
         else if (auto Var = llvm::cast<clang::VarDecl>(_cxxDecl))
         {
-            if (cxxDeclRef->isNonOdrUse() != NonOdrUseReason::NOUR_Unevaluated || cxxDeclRef->isNonOdrUse() != NonOdrUseReason::NOUR_Discarded) 
+            if (Var->isConstexpr())
+            {
+                if (cxxDeclRef->isNonOdrUse() != NonOdrUseReason::NOUR_Unevaluated || cxxDeclRef->isNonOdrUse() != NonOdrUseReason::NOUR_Discarded) 
+                {
+                    if (auto Decompressed = Var->getPotentiallyDecomposedVarDecl())
+                    {
+                        if (auto Evaluated = Decompressed->getEvaluatedValue()) 
+                        {
+                            if (Evaluated->isInt())
+                            {
+                                return AST.Constant(IntValue(Evaluated->getInt().getLimitedValue()));
+                            }
+                            else if (Evaluated->isFloat())
+                            {
+                                return AST.Constant(FloatValue(Evaluated->getFloat().convertToDouble()));
+                            }
+                            else 
+                            {
+                                ReportFatalError(x, "!!!!");
+                            }
+                        }
+                    }
+                }
+            }
+            else
             {
                 return AST.Ref(getVar(Var));
             }
@@ -566,6 +638,10 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     else if (auto cxxConstructor = llvm::dyn_cast<clang::CXXConstructExpr>(x))
     {
         auto SSLType = getType(cxxConstructor->getType().getTypePtr());
+        if (!SSLType->is_builtin())
+        {
+            recordFunction(llvm::dyn_cast<clang::FunctionDecl>(cxxConstructor->getConstructor()));
+        }
         std::vector<SSL::Expr*> _args;
         _args.reserve(cxxConstructor->getNumArgs());
         for (auto arg : cxxConstructor->arguments())
@@ -587,12 +663,15 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         {
             return AST.Constant(IntValue(114514));
         }
-        else if (IsCallOp(funcDecl))
+        else if (IsCallOp(funcDecl) || IsAccess(funcDecl))
         {
             return AST.Constant(IntValue(1919810));
         }
         else if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
         {
+            if (!recordFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
+                ReportFatalError(x, "Method declaration failed!");
+
             auto _callee = traverseStmt<SSL::MemberExpr>(cxxMemberCall->getCallee());
             std::vector<SSL::Expr*> args;
             args.reserve(cxxMemberCall->getNumArgs());
@@ -604,6 +683,9 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         }
         else
         {
+            if (!recordFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
+                ReportFatalError(x, "Function declaration failed!");
+
             auto _callee = traverseStmt<SSL::DeclRefExpr>(cxxCall->getCallee());
             std::vector<SSL::Expr*> args;
             args.reserve(cxxCall->getNumArgs());
@@ -639,16 +721,14 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     {
         auto owner = traverseStmt<SSL::DeclRefExpr>(memberExpr->getBase());
         auto memberDecl = memberExpr->getMemberDecl();
-        auto functionDecl = llvm::dyn_cast<clang::FunctionDecl>(memberDecl);
+        auto methodDecl = llvm::dyn_cast<clang::CXXMethodDecl>(memberDecl);
         auto fieldDecl = llvm::dyn_cast<clang::FieldDecl>(memberDecl);
-        if (functionDecl)
+        if (methodDecl)
         {
-            recordFunction(functionDecl);
-            return AST.Method(owner, (SSL::MethodDecl*)getFunc(functionDecl));
+            return AST.Method(owner, (SSL::MethodDecl*)getFunc(methodDecl));
         }
         else if (fieldDecl)
         {
-            auto ownerType = getType(memberExpr->getBase()->getType().getTypePtr());
             if (IsSwizzle(fieldDecl))
             {
                 auto swizzleText = fieldDecl->getName();
@@ -671,6 +751,9 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
             }
             else if (!fieldDecl->isAnonymousStructOrUnion())
             {
+                auto ownerType = getType(fieldDecl->getParent()->getTypeForDecl());
+                if (!ownerType)
+                    ReportFatalError(x, "Member expr with unfound owner type: [{}]", memberExpr->getBase()->getType().getAsString());
                 auto memberName = ToText(memberExpr->getMemberNameInfo().getName().getAsString());
                 if (memberName.empty())
                     ReportFatalError(x, "Member name is empty in member expr: {}", memberExpr->getStmtClassName());
@@ -694,6 +777,10 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     {
         return AST.This();
     }
+    else if (auto InitExpr = llvm::dyn_cast<CXXDefaultInitExpr>(x))
+    {
+        return traverseStmt(InitExpr->getExpr());
+    }
     else if (auto INT = llvm::dyn_cast<clang::IntegerLiteral>(x))
     {
         return AST.Constant(SSL::IntValue(INT->getValue().getLimitedValue()));
@@ -701,6 +788,10 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     else if (auto FLOAT = llvm::dyn_cast<clang::FloatingLiteral>(x))
     {
         return AST.Constant(SSL::FloatValue(FLOAT->getValue().convertToFloat()));
+    }
+    else if (auto cxxNullStmt = llvm::dyn_cast<clang::NullStmt>(x))
+    {
+        return AST.Block({});
     }
 
     ReportFatalError(x, "unsupported stmt: {}", x->getStmtClassName());

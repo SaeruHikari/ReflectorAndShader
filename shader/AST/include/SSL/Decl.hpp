@@ -9,6 +9,7 @@ struct Expr;
 struct TypeDecl;
 struct FieldDecl;
 struct MethodDecl;
+struct ConstructorDecl;
 struct ConstantExpr;
 
 struct Decl
@@ -71,10 +72,12 @@ public:
     const Size alignment() const { return _alignment; }
     const auto& fields() const { return _fields; }
     const auto& methods() const { return _methods; }
+    const auto& ctors() const { return _ctors; }
     const Stmt* body() const override;
 
     void add_field(FieldDecl* field);
     void add_method(MethodDecl* method);
+    void add_ctor(ConstructorDecl* ctor);
 
     FieldDecl* get_field(const Name& name) const;
     MethodDecl* get_method(const Name& name) const;
@@ -90,6 +93,7 @@ protected:
     Size _alignment = 0;
     std::vector<FieldDecl*> _fields;
     std::vector<MethodDecl*> _methods;
+    std::vector<ConstructorDecl*> _ctors;
 };
 
 struct ResourceTypeDecl : public TypeDecl
@@ -181,6 +185,13 @@ protected:
     friend struct AST;
     MethodDecl(AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
     TypeDecl* _owner = nullptr; // the type that owns this method
+};
+
+struct ConstructorDecl : public MethodDecl
+{
+protected:
+    friend struct AST;
+    ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
 };
 
 } // namespace skr::SSL

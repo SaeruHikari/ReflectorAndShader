@@ -92,7 +92,16 @@ void TypeDecl::add_field(FieldDecl* field)
 
 void TypeDecl::add_method(MethodDecl* method)
 {
+    assert(method != nullptr && "Method cannot be null");
+    assert(dynamic_cast<ConstructorDecl*>(method) == nullptr && "Cannot add constructor as method");
+    
     _methods.emplace_back(method);
+}
+
+void TypeDecl::add_ctor(ConstructorDecl* ctor)
+{
+    assert(ctor != nullptr && "Constructor cannot be null");
+    _ctors.emplace_back(ctor);
 }
 
 FieldDecl* TypeDecl::get_field(const Name& name) const
@@ -213,6 +222,12 @@ FunctionDecl::FunctionDecl(AST& ast, const Name& name, TypeDecl* const return_ty
 
 MethodDecl::MethodDecl(AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
     : FunctionDecl(ast, name, return_type, params, body), _owner(owner)
+{
+
+}
+
+ConstructorDecl::ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+    : MethodDecl(ast, owner, name, ast.VoidType, params, body)
 {
 
 }

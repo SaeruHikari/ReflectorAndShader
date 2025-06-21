@@ -276,8 +276,15 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         auto field = member->member_decl();
         if (auto _as_field = dynamic_cast<const FieldDecl*>(field))
         {
-            visitExpr(sb, owner);
-            sb.append(L"." + _as_field->name());
+            if (auto fromThis = dynamic_cast<const ThisExpr*>(member->children()[0]))
+            {
+                sb.append(_as_field->name());
+            }
+            else
+            {
+                visitExpr(sb, owner);
+                sb.append(L"." + _as_field->name());
+            }
         }
         else if (auto _as_method = dynamic_cast<const MethodDecl*>(field))
         {
@@ -475,10 +482,17 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
     {
         sb.append(L"struct " + typeDecl->name());
         sb.endline(L'{');
-        for (auto field : typeDecl->fields())
-        {
-            sb.append(L"    " + field->type().name() + L" " + field->name() + L";\n");
-        }
+        sb.indent([&] {
+            for (auto field : typeDecl->fields())
+            {
+                sb.append(field->type().name() + L" " + field->name());
+                sb.endline(L';');
+            }
+            for (auto method : typeDecl->methods())
+                visit(sb, method);
+            for (auto ctor : typeDecl->ctors())
+                visit(sb, ctor);
+        });
         sb.append(L"};\n");
     }        
 }

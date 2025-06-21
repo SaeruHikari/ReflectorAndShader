@@ -33,7 +33,7 @@ public:
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     ContinueStmt* Continue();
     DefaultStmt* Default(CompoundStmt* body);
-    FieldExpr* Field(DeclRefExpr* base, const FieldDecl* field);
+    FieldExpr* Field(Expr* base, const FieldDecl* field);
     ForStmt* For(Stmt* init, Expr* cond, Stmt* inc, CompoundStmt* body);
     IfStmt* If(Expr* cond, CompoundStmt* then_body, CompoundStmt* else_body = nullptr);
     InitListExpr* InitList(std::span<Expr*> exprs);
@@ -57,6 +57,7 @@ public:
     GlobalVarDecl* const DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
+    ConstructorDecl* DeclareConstructor(TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
 
@@ -116,6 +117,7 @@ private:
     std::vector<GlobalVarDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;
     std::vector<MethodDecl*> _methods;
+    std::vector<ConstructorDecl*> _ctors;
     std::vector<Attr*> _attrs;
     std::map<std::pair<TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
 

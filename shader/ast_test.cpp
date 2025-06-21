@@ -4,6 +4,7 @@
 #include "SSL/Decl.hpp"
 #include "SSL/AST.hpp"
 #include "SSL/langs/HLSLGenerator.hpp"
+#include "SSL/langs/MSLGenerator.hpp"
 
 void mandelbrot(skr::SSL::AST& AST)
 {
@@ -221,6 +222,10 @@ int main()
     HLSLGenerator hlsl_generator = {};
     SourceBuilderNew hlsl_sb = {};
     std::wcout << hlsl_generator.generate_code(hlsl_sb, AST) << std::endl;
+
+    MSLGenerator msl_generator = {};
+    SourceBuilderNew msl_sb = {};
+    std::wcout << msl_generator.generate_code(msl_sb, AST) << std::endl;
 
     std::wcout << AST.dump() << std::endl;
 

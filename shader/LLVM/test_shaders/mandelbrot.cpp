@@ -7,6 +7,16 @@ enum class E : uint {
     A, B, C, D, E, F, G
 };
 
+struct Method
+{
+    float dos(float c)
+    {
+        b = c;
+        return b + c;
+    }
+    float b = 2.f;
+};
+
 float4 mandelbrot(uint2 tid, uint2 tsize) {
     const float x = float(tid.x) / (float)tsize.x;
     const float y = float(tid.y) / (float)tsize.y;
@@ -39,6 +49,11 @@ void kernel([[builtin("ThreadID")]] uint2 tid,  Buffer<float4>& output)
 {
     const uint2 tsize = uint2(1024, 1024);
     const uint32 row_pitch = tsize.x;
+    Method m = Method();
+    m.b = 1.f;
+    m.b = m.dos(m.b);
+    m.b = m.dos(2.f);;
+
     /*
     auto mandelbrot = [&]() {
         const float x = float(tid.x) / (float)tsize.x;

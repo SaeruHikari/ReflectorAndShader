@@ -88,7 +88,7 @@ DefaultStmt* AST::Default(CompoundStmt* body)
     return stmt;
 }
 
-FieldExpr* AST::Field(DeclRefExpr* base, const FieldDecl* field)
+FieldExpr* AST::Field(Expr* base, const FieldDecl* field)
 {
     auto expr = new FieldExpr(*this, base, field);
     _stmts.emplace_back(expr);
@@ -267,6 +267,14 @@ MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* cons
     auto decl = new MethodDecl(*this, owner, name, return_type, params, body);
     _decls.emplace_back(decl);
     _methods.emplace_back(decl);
+    return decl;
+}
+
+ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, CompoundStmt* body)
+{
+    auto decl = new ConstructorDecl(*this, owner, name, params, body);
+    _decls.emplace_back(decl);
+    _ctors.emplace_back(decl);
     return decl;
 }
 

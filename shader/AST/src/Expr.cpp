@@ -71,13 +71,13 @@ InitListExpr::InitListExpr(AST& ast, std::span<Expr*> exprs)
         add_child(expr);
 }
 
-MemberExpr::MemberExpr(AST& ast, const DeclRefExpr* owner, const Decl* field)
+MemberExpr::MemberExpr(AST& ast, const Expr* owner, const Decl* field)
     : Expr(ast), _owner(owner), _member_decl(field)
 {
     add_child(_owner);
 }
 
-FieldExpr::FieldExpr(AST& ast, const DeclRefExpr* owner, const FieldDecl* field)
+FieldExpr::FieldExpr(AST& ast, const Expr* owner, const FieldDecl* field)
     : MemberExpr(ast, owner, field)
 {
 
