@@ -1,3 +1,4 @@
+#include "SSL/magic_enum/magic_enum.hpp"
 #include "DebugASTVisitor.hpp"
 #include "ShaderASTConsumer.hpp"
 #include <clang/Frontend/CompilerInstance.h>
@@ -161,7 +162,12 @@ std::unique_ptr<clang::ASTConsumer> CompileFrontendAction::CreateASTConsumer(cla
 ASTConsumer::ASTConsumer(skr::SSL::AST& AST)
     : clang::ASTConsumer(), AST(AST)
 {
-
+    constexpr auto bin_op_count = (uint64_t)BinaryOp::NOT_EQUAL + 1u;
+    for (uint32_t i = 0; i < bin_op_count; i++) 
+    {
+        const auto op = (BinaryOp)i;
+        _bin_ops.emplace(magic_enum::enum_name(op), op);
+    }
 }
 
 ASTConsumer::~ASTConsumer()
@@ -662,11 +668,43 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
             auto rhs = traverseStmt<SSL::Expr>(cxxCall->getArg(1));
             return AST.Assign(lhs, rhs);
         }
-        else if (IsUnaOp(funcDecl) || IsBinOp(funcDecl))
+        else if (auto AsUnaOp = IsUnaOp(funcDecl))
         {
-            return AST.Constant(IntValue(114514));
+            auto name = GetArgumentAt<clang::StringRef>(AsUnaOp, 1);
+            if (name == "PLUS")
+                return AST.Unary(SSL::UnaryOp::PLUS, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "MINUS")
+                return AST.Unary(SSL::UnaryOp::MINUS, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "NOT")
+                return AST.Unary(SSL::UnaryOp::NOT, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "BIT_NOT")
+                return AST.Unary(SSL::UnaryOp::BIT_NOT, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "PRE_INC")
+                return AST.Unary(SSL::UnaryOp::PRE_INC, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "PRE_DEC")
+                return AST.Unary(SSL::UnaryOp::PRE_DEC, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "POST_INC")
+                return AST.Unary(SSL::UnaryOp::POST_INC, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            else if (name == "POST_DEC")
+                return AST.Unary(SSL::UnaryOp::POST_DEC, traverseStmt<SSL::Expr>(cxxCall->getArg(0)));
+            ReportFatalError(x, "Unsupported unary operator: {}", name.str());
         }
-        else if (IsCallOp(funcDecl) || IsAccess(funcDecl))
+        else if (auto AsBinOp = IsBinOp(funcDecl))
+        {
+            auto name = GetArgumentAt<clang::StringRef>(AsBinOp, 1);
+            auto&& iter = _bin_ops.find(name.str());
+            if (iter == _bin_ops.end())
+                ReportFatalError(x, "Unsupported binary operator: {}", name.str());
+            SSL::BinaryOp op = iter->second;
+            auto lhs = traverseStmt<SSL::Expr>(cxxCall->getArg(0));
+            auto rhs = traverseStmt<SSL::Expr>(cxxCall->getArg(1));
+            return AST.Binary(op, lhs, rhs);
+        }
+        else if (IsAccess(funcDecl))
+        {
+            ReportFatalError(x, "Array access operator is not supported: {}", cxxCall->getStmtClassName());
+        }
+        else if (IsCallOp(funcDecl))
         {
             return AST.Constant(IntValue(1919810));
         }

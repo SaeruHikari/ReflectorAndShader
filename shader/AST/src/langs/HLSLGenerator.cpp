@@ -503,6 +503,7 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
                 {
                     param_refs.emplace_back(param->ref());
                 }
+                
                 // HLSL: Type _this = (Type)0;
                 auto _this = pAST->Variable(EVariableQualifier::None, typeDecl, L"_this", pAST->StaticCast(typeDecl, pAST->Constant(IntValue(0))));
                 // HLSL: _this.__SSL_CTOR__(args...);

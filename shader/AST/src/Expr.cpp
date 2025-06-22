@@ -1,6 +1,6 @@
 #include "SSL/Expr.hpp"
 #include "SSL/AST.hpp"
-#include "magic_enum/magic_enum.hpp"
+#include "SSL/magic_enum/magic_enum.hpp"
 
 namespace skr::SSL {
 

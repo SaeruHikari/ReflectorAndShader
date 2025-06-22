@@ -58,6 +58,8 @@ protected:
     void ReportFatalError(std::format_string<Args...> _fmt, Args&&... args) const;
     template <typename... Args>
     void ReportFatalError(const clang::Stmt* expr, std::format_string<Args...> _fmt, Args&&... args) const;
+    
+    std::map<std::string, skr::SSL::BinaryOp> _bin_ops;
 };
     
 } // namespace skr::SSL
