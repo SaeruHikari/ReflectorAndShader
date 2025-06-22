@@ -468,7 +468,13 @@ void MSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fun
                 StageEntry = s;
         }
 
-        std::vector<const ParamVarDecl*> params = funcDecl->parameters();
+        std::vector<const ParamVarDecl*> params;
+        params.reserve(funcDecl->parameters().size());
+        for (auto param : funcDecl->parameters())
+        {
+            params.emplace_back(param);
+        }
+        
         if (StageEntry)
         {
             // extract bindings from signature

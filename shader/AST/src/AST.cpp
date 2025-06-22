@@ -206,7 +206,7 @@ WhileStmt* AST::While(Expr* cond, CompoundStmt* body)
     return stmt;
 }
 
-TypeDecl* const AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
+TypeDecl* AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
 {
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
@@ -216,7 +216,7 @@ TypeDecl* const AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
     return new_type;
 }
 
-TypeDecl* const AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment, std::vector<FieldDecl*> fields)
+const TypeDecl* AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment, std::vector<FieldDecl*> fields)
 {
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
@@ -226,7 +226,7 @@ TypeDecl* const AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint3
     return new_type;
 }
 
-ArrayTypeDecl* const AST::DeclareArrayType(TypeDecl* const element, uint32_t count)
+const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t count)
 {
     auto found = _arrs.find({element, count});
     if (found != _arrs.end())
@@ -237,7 +237,7 @@ ArrayTypeDecl* const AST::DeclareArrayType(TypeDecl* const element, uint32_t cou
     return new_type;
 }
 
-GlobalVarDecl* const AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
+GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
 {
     // TODO: CHECK THIS IS NOT RESOURCE TYPE
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::Const, type, name, initializer);
@@ -246,7 +246,7 @@ GlobalVarDecl* const AST::DeclareGlobalConstant(const TypeDecl* type, const Name
     return decl;
 }
 
-GlobalVarDecl* const AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
+GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
 {
     // TODO: CHECK THIS IS RESOURCE TYPE
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::None, type, name, nullptr);
@@ -262,7 +262,7 @@ FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
     return decl;
 }
 
-MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body)
+MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
     auto decl = new MethodDecl(*this, owner, name, return_type, params, body);
     _decls.emplace_back(decl);
@@ -270,7 +270,7 @@ MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* cons
     return decl;
 }
 
-ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, CompoundStmt* body)
+ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
     auto decl = new ConstructorDecl(*this, owner, name, params, body);
     _decls.emplace_back(decl);
@@ -278,7 +278,7 @@ ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std:
     return decl;
 }
 
-FunctionDecl* AST::DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body)
+FunctionDecl* AST::DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
     auto decl = new FunctionDecl(*this, name, return_type, params, body);
     _decls.emplace_back(decl);
@@ -293,7 +293,7 @@ ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* ty
     return decl;
 }
 
-ByteBufferTypeDecl* const AST::ByteBuffer(BufferFlags flags)
+ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 {
     auto&& iter = _buffers.find(nullptr);
     if (iter != _buffers.end())
@@ -305,7 +305,7 @@ ByteBufferTypeDecl* const AST::ByteBuffer(BufferFlags flags)
     return new_type;
 }
 
-StructuredBufferTypeDecl* const AST::StructuredBuffer(TypeDecl* const element, BufferFlags flags)
+StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferFlags flags)
 {
     auto&& iter = _buffers.find(element);
     if (iter != _buffers.end())

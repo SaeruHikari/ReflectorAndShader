@@ -489,11 +489,36 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
                 sb.endline(L';');
             }
             for (auto method : typeDecl->methods())
+            {
                 visit(sb, method);
+            }
             for (auto ctor : typeDecl->ctors())
+            {
                 visit(sb, ctor);
+
+                AST* pAST = const_cast<AST*>(&typeDecl->ast());
+                std::vector<Expr*> param_refs;
+                param_refs.reserve(ctor->parameters().size());
+                for (auto param : ctor->parameters())
+                {
+                    param_refs.emplace_back(param->ref());
+                }
+                // HLSL: Type _this = (Type)0;
+                auto _this = pAST->Variable(EVariableQualifier::None, typeDecl, L"_this", pAST->StaticCast(typeDecl, pAST->Constant(IntValue(0))));
+                // HLSL: _this.__SSL_CTOR__(args...);
+                auto _init = pAST->CallMethod(pAST->Method(_this->ref(), ctor), param_refs);
+                // HLSL: return _this;
+                auto _return = pAST->Return(_this->ref());
+
+                auto WrapperBody = pAST->Block({ _this, _init, _return });
+                sb.append(L"static ");
+                visit(sb, pAST->DeclareFunction(L"__CTOR__", typeDecl, ctor->parameters(), WrapperBody));
+            }
         });
-        sb.append(L"};\n");
+        sb.append(L"}");
+        sb.endline(L';');
+        sb.append(L"#define " + typeDecl->name() + L"(__VA_ARGS__) " + typeDecl->name() + L"::__CTOR__(__VA_ARGS__)");
+        sb.endline();
     }        
 }
 
@@ -509,7 +534,13 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
                 StageEntry = s;
         }
 
-        std::vector<const ParamVarDecl*> params = funcDecl->parameters();
+        std::vector<const ParamVarDecl*> params;
+        params.reserve(funcDecl->parameters().size());
+        for (auto param : funcDecl->parameters())
+        {
+            params.emplace_back(param);
+        }
+
         if (StageEntry)
         {
             // extract bindings from signature

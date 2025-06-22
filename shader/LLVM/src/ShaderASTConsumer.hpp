@@ -36,6 +36,7 @@ protected:
     T* traverseStmt(const clang::Stmt* x);
     Stmt* traverseStmt(const clang::Stmt *x);
     
+    bool addType(const clang::Type* type, const skr::SSL::TypeDecl* decl);
     bool addType(const clang::Type* type, skr::SSL::TypeDecl* decl);
     skr::SSL::TypeDecl* getType(const clang::Type* type) const;
     bool addVar(const clang::VarDecl* var, skr::SSL::VarDecl* decl);

@@ -174,7 +174,7 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
     // TODO: GENERIC LOAD/STORE
 }
 
-StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, TypeDecl* const element, BufferFlags flags)
+StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags)
     : BufferTypeDecl(ast, std::format(L"{}StructuredBuffer<{}>", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L"", element->name()), flags), _element(element)
 {
     this->add_method(ast.DeclareMethod(this, L"GetCount", element, {}, nullptr));
@@ -192,7 +192,7 @@ StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, TypeDecl* const ele
     }
 }
 
-ArrayTypeDecl::ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count)
+ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)
     : TypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true)
 {
 
@@ -210,7 +210,7 @@ ParamVarDecl::ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDec
 
 }
 
-FunctionDecl::FunctionDecl(AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+FunctionDecl::FunctionDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body)
     : Decl(ast), _name(name), _return_type(return_type), _body(body)
 {
     _parameters.reserve(_parameters.size());
@@ -220,13 +220,13 @@ FunctionDecl::FunctionDecl(AST& ast, const Name& name, TypeDecl* const return_ty
     }
 }
 
-MethodDecl::MethodDecl(AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+MethodDecl::MethodDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body)
     : FunctionDecl(ast, name, return_type, params, body), _owner(owner)
 {
 
 }
 
-ConstructorDecl::ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, const CompoundStmt* body)
+ConstructorDecl::ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, const CompoundStmt* body)
     : MethodDecl(ast, owner, name, ast.VoidType, params, body)
 {
 

@@ -247,22 +247,22 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
 
             if (getType(ET) == AST.FloatType)
             {
-                skr::SSL::TypeDecl* Types[] = { AST.Float2Type, AST.Float3Type, AST.Float4Type };
+                const skr::SSL::TypeDecl* Types[] = { AST.Float2Type, AST.Float3Type, AST.Float4Type };
                 addType(Type, Types[N - 2]);
             }
             else if (getType(ET) == AST.IntType)
             {
-                skr::SSL::TypeDecl* Types[] = { AST.Int2Type, AST.Int3Type, AST.Int4Type };
+                const skr::SSL::TypeDecl* Types[] = { AST.Int2Type, AST.Int3Type, AST.Int4Type };
                 addType(Type, Types[N - 2]);
             }
             else if (getType(ET) == AST.UIntType)
             {
-                skr::SSL::TypeDecl* Types[] = { AST.UInt2Type, AST.UInt3Type, AST.UInt4Type };
+                const skr::SSL::TypeDecl* Types[] = { AST.UInt2Type, AST.UInt3Type, AST.UInt4Type };
                 addType(Type, Types[N - 2]);
             }
             else if (getType(ET) == AST.BoolType)
             {
-                skr::SSL::TypeDecl* Types[] = { AST.Bool2Type, AST.Bool3Type, AST.Bool4Type };
+                const skr::SSL::TypeDecl* Types[] = { AST.Bool2Type, AST.Bool3Type, AST.Bool4Type };
                 addType(Type, Types[N - 2]);
             }
             else
@@ -283,7 +283,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto N = Arguments.get(0).getAsIntegral().getLimitedValue();
-            skr::SSL::TypeDecl* Types[] = { AST.Float2x2Type, AST.Float3x3Type, AST.Float4x4Type };
+            const skr::SSL::TypeDecl* Types[] = { AST.Float2x2Type, AST.Float3x3Type, AST.Float4x4Type };
             addType(Type, Types[N - 2]);
         }
         else if (What == "half")
@@ -407,7 +407,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
             }
             F = AST.DeclareConstructor(
                 ownerType,
-                L"ctor",
+                ConstructorDecl::kSymbolName,
                 params,
                 body
             );
@@ -846,6 +846,11 @@ bool ASTConsumer::addType(const clang::Type* type, skr::SSL::TypeDecl* decl)
         return false;
     }
     return true;
+}
+
+bool ASTConsumer::addType(const clang::Type* type, const skr::SSL::TypeDecl* decl)
+{
+    return addType(type, const_cast<skr::SSL::TypeDecl*>(decl));
 }
 
 skr::SSL::TypeDecl* ASTConsumer::getType(const clang::Type* type) const

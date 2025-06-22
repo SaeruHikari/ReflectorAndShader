@@ -8,12 +8,12 @@
 
 namespace skr::SSL {
 
-#define VEC_TYPES(N) TypeDecl* const N##2Type = nullptr; TypeDecl* const N##3Type = nullptr; TypeDecl* const N##4Type = nullptr;
+#define VEC_TYPES(N) const TypeDecl* N##2Type = nullptr; const TypeDecl* N##3Type = nullptr; const TypeDecl* N##4Type = nullptr;
 #define MATRIX_TYPES(N) \
-    TypeDecl* const N##1x1Type = nullptr; TypeDecl* const N##1x2Type = nullptr; TypeDecl* const N##1x3Type = nullptr; TypeDecl* const N##1x4Type = nullptr;\
-    TypeDecl* const N##2x1Type = nullptr; TypeDecl* const N##2x2Type = nullptr; TypeDecl* const N##2x3Type = nullptr; TypeDecl* const N##2x4Type = nullptr;\
-    TypeDecl* const N##3x1Type = nullptr; TypeDecl* const N##3x2Type = nullptr; TypeDecl* const N##3x3Type = nullptr; TypeDecl* const N##3x4Type = nullptr;\
-    TypeDecl* const N##4x1Type = nullptr; TypeDecl* const N##4x2Type = nullptr; TypeDecl* const N##4x3Type = nullptr; TypeDecl* const N##4x4Type = nullptr;
+    const TypeDecl* N##1x1Type = nullptr; const TypeDecl* N##1x2Type = nullptr; const TypeDecl* N##1x3Type = nullptr; const TypeDecl* N##1x4Type = nullptr;\
+    const TypeDecl* N##2x1Type = nullptr; const TypeDecl* N##2x2Type = nullptr; const TypeDecl* N##2x3Type = nullptr; const TypeDecl* N##2x4Type = nullptr;\
+    const TypeDecl* N##3x1Type = nullptr; const TypeDecl* N##3x2Type = nullptr; const TypeDecl* N##3x3Type = nullptr; const TypeDecl* N##3x4Type = nullptr;\
+    const TypeDecl* N##4x1Type = nullptr; const TypeDecl* N##4x2Type = nullptr; const TypeDecl* N##4x3Type = nullptr; const TypeDecl* N##4x4Type = nullptr;
 
 struct AST
 {
@@ -50,22 +50,22 @@ public:
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     WhileStmt* While(Expr* cond, CompoundStmt* body);
 
-    TypeDecl* const DeclareType(const Name& name, std::span<FieldDecl*> members);
-    TypeDecl* const DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
-    ArrayTypeDecl* const DeclareArrayType(TypeDecl* const element, uint32_t count);
-    GlobalVarDecl* const DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
-    GlobalVarDecl* const DeclareGlobalResource(const TypeDecl* type, const Name& name);
+    TypeDecl* DeclareType(const Name& name, std::span<FieldDecl*> members);
+    const TypeDecl* DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
+    const ArrayTypeDecl* DeclareArrayType(const TypeDecl* element, uint32_t count);
+    GlobalVarDecl* DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
+    GlobalVarDecl* DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
-    MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
-    ConstructorDecl* DeclareConstructor(TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, CompoundStmt* body);
-    FunctionDecl* DeclareFunction(const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, CompoundStmt* body);
+    MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
+    ConstructorDecl* DeclareConstructor(TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
+    FunctionDecl* DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
 
-    ByteBufferTypeDecl* const ByteBuffer(BufferFlags flags);
+    ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
     // TODO: for scalar, float2/4 types
-    // Buffer* const Buffer(TypeDecl* const element, BufferFlags flags);
-    StructuredBufferTypeDecl* const StructuredBuffer(TypeDecl* const element, BufferFlags flags);
-    // TypeDecl* const TextureType(TypeDecl* const element);
+    // Buffer* Buffer(const TypeDecl* element, BufferFlags flags);
+    StructuredBufferTypeDecl* StructuredBuffer(const TypeDecl* element, BufferFlags flags);
+    // TypeDecl* TextureType(const TypeDecl* element);
 
     template <typename ATTR, typename... Args>
     inline ATTR* DeclareAttr(Args&&... args) {
@@ -112,38 +112,38 @@ public:
 private:
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
-    std::unordered_map<TypeDecl*, BufferTypeDecl*> _buffers;
+    std::unordered_map<const TypeDecl*, BufferTypeDecl*> _buffers;
     std::vector<TypeDecl*> _types;
     std::vector<GlobalVarDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;
     std::vector<MethodDecl*> _methods;
     std::vector<ConstructorDecl*> _ctors;
     std::vector<Attr*> _attrs;
-    std::map<std::pair<TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
+    std::map<std::pair<const TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
 
 public:
-    TypeDecl* const VoidType = nullptr;
+    const TypeDecl* VoidType = nullptr;
     
-    TypeDecl* const BoolType = nullptr;
+    const TypeDecl* BoolType = nullptr;
     VEC_TYPES(Bool);
     MATRIX_TYPES(Bool);
 
-    TypeDecl* const HalfType = nullptr;
-    TypeDecl* const FloatType = nullptr;
+    const TypeDecl* HalfType = nullptr;
+    const TypeDecl* FloatType = nullptr;
     VEC_TYPES(Float);
     MATRIX_TYPES(Float);
 
-    TypeDecl* const UIntType = nullptr;
+    const TypeDecl* UIntType = nullptr;
     VEC_TYPES(UInt);
     MATRIX_TYPES(UInt);
     
-    TypeDecl* const IntType = nullptr;
+    const TypeDecl* IntType = nullptr;
     VEC_TYPES(Int);
     MATRIX_TYPES(Int);
     
-    TypeDecl* const DoubleType = nullptr;
-    TypeDecl* const U64Type = nullptr;
-    TypeDecl* const I64Type = nullptr;
+    const TypeDecl* DoubleType = nullptr;
+    const TypeDecl* U64Type = nullptr;
+    const TypeDecl* I64Type = nullptr;
 };
 
 #undef VEC_TYPES

@@ -20,6 +20,7 @@ public:
     virtual const Stmt* body() const = 0;
     virtual DeclRefExpr* ref() const;
 
+    const AST& ast() const { return *_ast; }
     std::span<Attr* const> attrs() const { return _attrs; }
     void add_attr(Attr* attr);
 
@@ -128,15 +129,15 @@ public:
 
 protected:
     friend struct AST;
-    StructuredBufferTypeDecl(AST& ast, TypeDecl* const element, BufferFlags flags);
-    TypeDecl* const _element = nullptr; // the type of elements in the buffer
+    StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags);
+    const TypeDecl* _element = nullptr; // the type of elements in the buffer
 };
 
 struct ArrayTypeDecl : public TypeDecl
 {
 protected:
     friend struct AST;
-    ArrayTypeDecl(AST& ast, TypeDecl* const element, uint32_t count);
+    ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count);
 };
 
 struct GlobalVarDecl : public VarDecl
@@ -164,15 +165,15 @@ struct FunctionDecl : public Decl
 public:
     const Name& name() const { return _name; }
     const TypeDecl* return_type() const { return _return_type; }
-    const auto& parameters() const { return _parameters; }
+    const std::span<const ParamVarDecl* const> parameters() const { return _parameters; }
     const Stmt* body() const override { return _body; }
 
 protected:
     friend struct AST;
-    FunctionDecl(AST& ast, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    FunctionDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body);
     const Name _name = L"__INVALID_FUNC__";
     const CompoundStmt* _body = nullptr;
-    TypeDecl* const _return_type = nullptr;
+    const TypeDecl* _return_type = nullptr;
     std::vector<const ParamVarDecl*> _parameters;
 };
 
@@ -183,15 +184,18 @@ public:
 
 protected:
     friend struct AST;
-    MethodDecl(AST& ast, TypeDecl* owner, const Name& name, TypeDecl* const return_type, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
-    TypeDecl* _owner = nullptr; // the type that owns this method
+    MethodDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body);
+    const TypeDecl* _owner = nullptr; // the type that owns this method
 };
 
 struct ConstructorDecl : public MethodDecl
 {
+public:
+    inline static const SSL::Name kSymbolName = L"__SSL_CTOR__";
+
 protected:
     friend struct AST;
-    ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<ParamVarDecl* const> params, const CompoundStmt* body);
+    ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, const CompoundStmt* body);
 };
 
 } // namespace skr::SSL
