@@ -30,11 +30,20 @@ protected:
     std::vector<Attr*> _attrs;
 };
 
-struct VarDecl : public Decl
+struct NamedDecl : public Decl
+{
+public:
+    const Name& name() const { return _name; }
+
+protected:
+    NamedDecl(AST& ast, const Name& name);
+    Name _name = L"__INVALID_DECL__";
+};
+
+struct VarDecl : public NamedDecl
 {
 public:
     const TypeDecl& type() const { return *_type; }
-    String name() const { return _name; }
     Expr* initializer() const { return _initializer; }
     EVariableQualifier qualifier() const { return _qualifier; }
     const Stmt* body() const override;
@@ -44,15 +53,13 @@ protected:
     VarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
     EVariableQualifier _qualifier = EVariableQualifier::None; // the qualifier of the variable (e.g., const, in, out, etc.)
     const TypeDecl* _type = nullptr;
-    Name _name = L"__INVALID_VAR__";
     Expr* _initializer = nullptr;
 };
 
-struct FieldDecl : public Decl
+struct FieldDecl : public NamedDecl
 {
 public:
     const TypeDecl& type() const { return *_type; }
-    const Name& name() const;
     const Size size() const;
     const Size alignment() const;
     const Stmt* body() const override;
@@ -60,14 +67,12 @@ public:
 protected:
     friend struct AST;    
     FieldDecl(AST& ast, const Name& _name, const TypeDecl* type);
-    Name _name = L"__INVALID_MEMBER__";
     const TypeDecl* _type = nullptr;
 };
 
-struct TypeDecl : public Decl
+struct TypeDecl : public NamedDecl
 {
 public:
-    const Name& name() const { return _name; }
     bool is_builtin() const { return _is_builtin; }
     const Size size() const  { return _size; }
     const Size alignment() const { return _alignment; }
@@ -88,7 +93,6 @@ protected:
     TypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
     TypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
 
-    Name _name = L"__INVALID_TYPE__";
     const bool _is_builtin = true;
     Size _size = 0;
     Size _alignment = 0;
@@ -160,18 +164,27 @@ protected:
     ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& _name);
 };
 
-struct FunctionDecl : public Decl
+struct ParamVarConceptDecl : public NamedDecl
 {
 public:
-    const Name& name() const { return _name; }
-    const TypeDecl* return_type() const { return _return_type; }
-    const std::span<const ParamVarDecl* const> parameters() const { return _parameters; }
+    const Stmt* body() const override;
+    virtual bool validate(EVariableQualifier qualifier, const TypeDecl* type) const = 0;
+
+protected:
+    friend struct AST;
+    ParamVarConceptDecl(AST& ast, const Name& name);
+};
+
+struct FunctionDecl : public NamedDecl
+{
+public:
+    const TypeDecl* return_type() const;
+    const std::span<const ParamVarDecl* const> parameters() const;
     const Stmt* body() const override { return _body; }
 
 protected:
     friend struct AST;
     FunctionDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body);
-    const Name _name = L"__INVALID_FUNC__";
     const CompoundStmt* _body = nullptr;
     const TypeDecl* _return_type = nullptr;
     std::vector<const ParamVarDecl*> _parameters;

@@ -81,6 +81,7 @@ void kernel([[builtin("ThreadID")]] uint2 tid,  Buffer<float4>& output)
         return float4(d + (e * cos(((f * t) + g) * 2.f * pi)), 1.0f);
     };
     */
+    CommittedHit ch = CommittedHit();
     float4 c = mandelbrot(tid, tsize);
     output.store(tid.x + tid.y * row_pitch, mandelbrot(tid, tsize));
 }

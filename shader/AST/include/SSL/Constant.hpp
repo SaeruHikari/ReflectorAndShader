@@ -47,6 +47,7 @@ public:
     }
 
     const bool is_signed() const { return _signed; }
+    const uint32_t bitwidth() const { return _bitwidth; }
 
 private:
     std::aligned_storage<64, alignof(int64_t)> _storage;

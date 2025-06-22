@@ -513,7 +513,8 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
 
                 auto WrapperBody = pAST->Block({ _this, _init, _return });
                 sb.append(L"static ");
-                visit(sb, pAST->DeclareFunction(L"__CTOR__", typeDecl, ctor->parameters(), WrapperBody));
+                // 只 declare 这些 method，但是不把他们加到类型里面，不然会被生成 method 的逻辑重复生成
+                visit(sb, pAST->DeclareMethod(const_cast<skr::SSL::TypeDecl*>(typeDecl), L"__CTOR__", typeDecl, ctor->parameters(), WrapperBody));
             }
         });
         sb.append(L"}");

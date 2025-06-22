@@ -42,9 +42,9 @@ public:
     DeclRefExpr* Ref(const Decl* decl);
     ReturnStmt* Return(Expr* expr);
     StaticCastExpr* StaticCast(const TypeDecl* type, Expr* expr);
-    SwizzleExpr* Swizzle(Expr* expr, uint64_t comps, const uint64_t* seq);
+    SwizzleExpr* Swizzle(Expr* expr, const TypeDecl* type, uint64_t comps, const uint64_t* seq);
     SwitchStmt* Switch(Expr* cond, std::span<CaseStmt*> cases);
-    ThisExpr* This();
+    ThisExpr* This(const TypeDecl* type);
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
@@ -56,9 +56,9 @@ public:
     GlobalVarDecl* DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
     GlobalVarDecl* DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
+    FunctionDecl* DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
     MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
     ConstructorDecl* DeclareConstructor(TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
-    FunctionDecl* DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
 
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);

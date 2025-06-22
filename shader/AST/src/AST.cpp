@@ -152,9 +152,9 @@ StaticCastExpr* AST::StaticCast(const TypeDecl* type, Expr* expr)
     return cast;
 }
 
-SwizzleExpr* AST::Swizzle(Expr* expr, uint64_t comps, const uint64_t* seq)
+SwizzleExpr* AST::Swizzle(Expr* expr, const TypeDecl* type, uint64_t comps, const uint64_t* seq)
 {
-    auto swizzle = new SwizzleExpr(*this, expr, comps, seq);
+    auto swizzle = new SwizzleExpr(*this, expr, type, comps, seq);
     _stmts.emplace_back(swizzle);
     return swizzle;
 }
@@ -166,9 +166,9 @@ SwitchStmt* AST::Switch(Expr* cond, std::span<CaseStmt*> cases)
     return stmt;
 }
 
-ThisExpr* AST::This()
+ThisExpr* AST::This(const TypeDecl* type)
 {
-    auto expr = new ThisExpr(*this);
+    auto expr = new ThisExpr(*this, type);
     _stmts.emplace_back(expr);
     return expr;
 }

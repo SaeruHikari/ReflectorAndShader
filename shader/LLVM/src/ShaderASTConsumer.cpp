@@ -405,7 +405,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
                 auto N = ToText(F->getDeclName().getAsString());
                 body->add_statement(
                     AST.Assign(
-                        AST.Field(AST.This(), ownerType->get_field(N)),
+                        AST.Field(AST.This(ownerType), ownerType->get_field(N)),
                         (SSL::Expr*)traverseStmt(ctor_init->getInit())
                     )
                 );
@@ -702,7 +702,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         }
         else if (IsAccess(funcDecl))
         {
-            ReportFatalError(x, "Array access operator is not supported: {}", cxxCall->getStmtClassName());
+            ReportFatalError(x, "Array access operator is not supported yet: {}", cxxCall->getStmtClassName());
         }
         else if (IsCallOp(funcDecl))
         {
@@ -743,7 +743,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         if (cxxOp == clang::UO_Deref)
         {
             if (auto _this = llvm::dyn_cast<CXXThisExpr>(cxxUnaryOp->getSubExpr()))
-                return AST.This(); // deref 'this' (*this)
+                return AST.This(getType(_this->getType().getCanonicalType().getTypePtr())); // deref 'this' (*this)
             else
                 ReportFatalError(x, "Unsupported deref operator on non-'this' expression: {}", cxxUnaryOp->getStmtClassName());
         }
@@ -772,6 +772,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         {
             if (IsSwizzle(fieldDecl))
             {
+                auto swizzleResultType = getType(fieldDecl->getType().getTypePtr());
                 auto swizzleText = fieldDecl->getName();
                 uint64_t swizzle_seq[] = {0u, 0u, 0u, 0u}; /*4*/
                 int64_t swizzle_size = 0;
@@ -788,7 +789,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
 
                     swizzle_size += 1;
                 }
-                return AST.Swizzle(owner, swizzle_size, swizzle_seq);
+                return AST.Swizzle(owner, swizzleResultType, swizzle_size, swizzle_seq);
             }
             else if (!fieldDecl->isAnonymousStructOrUnion())
             {
@@ -816,7 +817,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     }
     else if (auto THIS = llvm::dyn_cast<clang::CXXThisExpr>(x))
     {
-        return AST.This();
+        return AST.This(getType(THIS->getType().getCanonicalType().getTypePtr()));
     }
     else if (auto InitExpr = llvm::dyn_cast<CXXDefaultInitExpr>(x))
     {

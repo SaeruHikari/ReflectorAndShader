@@ -17,20 +17,20 @@ struct Expr : public ValueStmt
 {
 public:
     virtual ~Expr() = default;
+    const TypeDecl* type() const { return _type; }
 
 protected:
-    Expr(AST& ast);
+    Expr(AST& ast, const TypeDecl* type);
+    const TypeDecl* _type = nullptr;
 };
 
 struct CastExpr : Expr
 {
 public:
-    const TypeDecl* type() const { return _type; }
     Expr* expr() const { return _expr; }
 
 protected:
     CastExpr(AST& ast, const TypeDecl* type, Expr* expr);
-    const TypeDecl* _type = nullptr;
     Expr* _expr = nullptr;
 };
 
@@ -61,6 +61,7 @@ struct CallExpr : Expr
 public:
     const DeclRefExpr* callee() const { return _callee; }
     std::span<Expr* const> args() const { return _args; }
+
 private:
     friend struct AST;
     CallExpr(AST& ast, DeclRefExpr* callee, std::span<Expr*> args);
@@ -82,13 +83,11 @@ private:
 struct ConstructExpr : Expr
 {
 public:
-    const TypeDecl* type() const { return _type; }
     std::span<Expr* const> args() const { return _args; }
 
 private:
     friend struct AST;
     ConstructExpr(AST& ast, const TypeDecl* type, std::span<Expr*> args);
-    const TypeDecl* _type = nullptr;
     std::vector<Expr*> _args;
 };
 
@@ -125,7 +124,7 @@ public:
     const Decl* member_decl() const { return _member_decl; }
 
 protected:
-    MemberExpr(AST& ast, const Expr* owner, const Decl* field);
+    MemberExpr(AST& ast, const Expr* owner, const Decl* field, const TypeDecl* type);
     const Expr* _owner = nullptr;
     const Decl* _member_decl = nullptr;
 };
@@ -171,7 +170,7 @@ public:
 
 private:
     friend struct AST;
-    SwizzleExpr(AST& ast, Expr* expr, uint64_t comps, const uint64_t* seq);
+    SwizzleExpr(AST& ast, Expr* expr, const TypeDecl* result_type, uint64_t comps, const uint64_t* seq);
     uint64_t _seq[4];
     uint64_t _comps = 0u;
     Expr* _expr = nullptr;
@@ -188,7 +187,7 @@ struct ThisExpr final : Expr
 {
 private:
     friend struct AST;
-    ThisExpr(AST& ast);
+    ThisExpr(AST& ast, const TypeDecl* type);
 };
 
 struct UnaryExpr : Expr

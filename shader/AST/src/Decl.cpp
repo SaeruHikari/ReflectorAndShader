@@ -23,26 +23,27 @@ DeclRefExpr* Decl::ref() const
     return const_cast<AST*>(_ast)->Ref(this);
 }
 
+NamedDecl::NamedDecl(AST& ast, const Name& name)
+    : Decl(ast), _name(name)
+{
+
+}
+
 const Stmt* VarDecl::body() const
 {
     return nullptr;
 }
 
 VarDecl::VarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer)
-    : Decl(ast), _qualifier(qualifier), _type(type), _name(name), _initializer(initializer)
+    : NamedDecl(ast, name), _qualifier(qualifier), _type(type), _initializer(initializer)
 {
 
 }
 
 FieldDecl::FieldDecl(AST& ast, const Name& name, const TypeDecl* type)
-    : Decl(ast), _name(name), _type(type)
+    : NamedDecl(ast, name), _type(type)
 {
 
-}
-
-const Name& FieldDecl::name() const
-{
-    return _name;
 }
 
 const Size FieldDecl::size() const
@@ -61,13 +62,13 @@ const Stmt* FieldDecl::body() const
 }
 
 TypeDecl::TypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment, std::span<FieldDecl*> fields, bool is_builtin)
-    : Decl(ast), _name(name), _is_builtin(is_builtin), _size(size), _alignment(alignment), _fields(fields.begin(), fields.end())
+    : NamedDecl(ast, name), _is_builtin(is_builtin), _size(size), _alignment(alignment), _fields(fields.begin(), fields.end())
 {
 
 }
 
 TypeDecl::TypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin)
-    : Decl(ast), _name(name), _is_builtin(is_builtin)
+    : NamedDecl(ast, name), _is_builtin(is_builtin)
 {
     _fields.reserve(_fields.size());
     for (const auto& field : fields)
@@ -211,13 +212,23 @@ ParamVarDecl::ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDec
 }
 
 FunctionDecl::FunctionDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body)
-    : Decl(ast), _name(name), _return_type(return_type), _body(body)
+    : NamedDecl(ast, name), _return_type(return_type), _body(body)
 {
     _parameters.reserve(_parameters.size());
     for (const auto& param : params)
     {
         _parameters.emplace_back(param);
     }
+}
+
+const TypeDecl* FunctionDecl::return_type() const 
+{ 
+    return _return_type; 
+}
+
+const std::span<const ParamVarDecl* const> FunctionDecl::parameters() const
+{
+    return std::span<const ParamVarDecl* const>(_parameters);
 }
 
 MethodDecl::MethodDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, const CompoundStmt* body)
