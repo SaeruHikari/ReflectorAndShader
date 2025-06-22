@@ -391,8 +391,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
             if (ownerType->is_builtin())
                 return nullptr;
 
-            auto body = traverseStmt<SSL::CompoundStmt>(x->getBody());
-            body = body ? body : AST.Block({});
+            auto body = AST.Block({});
             for (auto ctor_init : AsCtor->inits())
             {
                 auto F = ctor_init->getMember();
@@ -405,6 +404,10 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
                     )
                 );
             }
+            
+            if (auto func = traverseStmt<SSL::CompoundStmt>(x->getBody()))
+                body->add_statement(func);
+
             F = AST.DeclareConstructor(
                 ownerType,
                 ConstructorDecl::kSymbolName,
