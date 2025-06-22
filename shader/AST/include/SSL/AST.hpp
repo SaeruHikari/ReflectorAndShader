@@ -8,6 +8,16 @@
 
 namespace skr::SSL {
 
+// Forward declarations for template system
+struct TemplateCallableDecl;
+struct SpecializedFunctionDecl;
+struct SpecializedMethodDecl;
+struct VarConceptDecl;
+struct ScalarVarConcept;
+struct VectorVarConcept;
+struct NumericVarConcept;
+struct AnyTypeVarConcept;
+
 #define VEC_TYPES(N) const TypeDecl* N##2Type = nullptr; const TypeDecl* N##3Type = nullptr; const TypeDecl* N##4Type = nullptr;
 #define MATRIX_TYPES(N) \
     const TypeDecl* N##1x1Type = nullptr; const TypeDecl* N##1x2Type = nullptr; const TypeDecl* N##1x3Type = nullptr; const TypeDecl* N##1x4Type = nullptr;\
@@ -57,9 +67,16 @@ public:
     GlobalVarDecl* DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
     FunctionDecl* DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
-    MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
+    MethodDecl* DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body);    
     ConstructorDecl* DeclareConstructor(TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, CompoundStmt* body);
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
+    VarConceptDecl* DeclareVarConcept(const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator);    
+    TemplateCallableDecl* DeclareTemplateFunction(const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    TemplateCallableDecl* DeclareTemplateMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    
+    const TemplateCallableDecl* FindIntrinsic(const char* name) const;
+    SpecializedFunctionDecl* SpecializeTemplateFunction(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
+    SpecializedMethodDecl* SpecializeTemplateMethod(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
 
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
     // TODO: for scalar, float2/4 types
@@ -120,6 +137,9 @@ private:
     std::vector<ConstructorDecl*> _ctors;
     std::vector<Attr*> _attrs;
     std::map<std::pair<const TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
+    
+    // Template and specialized declarations
+    std::map<std::string, TemplateCallableDecl*> _template_intrinstics;
 
 public:
     const TypeDecl* VoidType = nullptr;

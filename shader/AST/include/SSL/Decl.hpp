@@ -164,7 +164,7 @@ protected:
     ParamVarDecl(AST& ast, EVariableQualifier qualifier, const TypeDecl* type, const Name& _name);
 };
 
-struct ParamVarConceptDecl : public NamedDecl
+struct VarConceptDecl : public NamedDecl
 {
 public:
     const Stmt* body() const override;
@@ -172,7 +172,7 @@ public:
 
 protected:
     friend struct AST;
-    ParamVarConceptDecl(AST& ast, const Name& name);
+    VarConceptDecl(AST& ast, const Name& name);
 };
 
 struct FunctionDecl : public NamedDecl
@@ -204,11 +204,85 @@ protected:
 struct ConstructorDecl : public MethodDecl
 {
 public:
-    inline static const SSL::Name kSymbolName = L"__SSL_CTOR__";
+    inline static const Name kSymbolName = L"__SSL_CTOR__";
 
 protected:
     friend struct AST;
     ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, const CompoundStmt* body);
+};
+
+// Template callable that can represent both function and method templates
+struct TemplateCallableDecl : public NamedDecl
+{
+public:
+    const Stmt* body() const override { return nullptr; } // Templates have no body
+    
+    // Get the return type for specific argument types (may depend on arguments)
+    virtual const TypeDecl* get_return_type_for(std::span<const TypeDecl* const> arg_types) const;
+    
+    // Get parameter concepts for validation
+    std::span<const VarConceptDecl* const> parameter_concepts() const { return _parameter_concepts; }
+    
+    // Validate if a call with given argument types and qualifiers matches this template
+    bool can_call_with(std::span<const TypeDecl* const> arg_types, 
+                      std::span<const EVariableQualifier> arg_qualifiers) const;
+    
+    // For methods, returns the owner type; for functions, returns nullptr
+    const TypeDecl* owner_type() const { return _owner; }
+    bool is_method() const { return _owner != nullptr; }
+    
+    // Generate a specialized function/method for given argument types
+    FunctionDecl* specialize_for(std::span<const TypeDecl* const> arg_types, 
+                                std::span<const EVariableQualifier> arg_qualifiers) const;
+
+protected:
+    friend struct AST;
+    // Constructor for template function
+    TemplateCallableDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    // Constructor for template method
+    TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    
+    const TypeDecl* _owner = nullptr; // nullptr for functions, owner type for methods
+    const TypeDecl* _return_type = nullptr; // Base return type, may be modified based on arguments
+    std::vector<const VarConceptDecl*> _parameter_concepts;
+};
+
+// Specialized function generated from template (inherits from FunctionDecl)
+struct SpecializedFunctionDecl : public FunctionDecl
+{
+public:
+    const TemplateCallableDecl* template_decl() const { return _template; }
+    
+    // Override to indicate this is a specialization
+    bool is_template_specialization() const { return true; }
+
+protected:
+    friend struct AST;
+    friend struct TemplateCallableDecl;
+    SpecializedFunctionDecl(AST& ast, const TemplateCallableDecl* template_decl, 
+                           std::span<const TypeDecl* const> arg_types,
+                           std::span<const EVariableQualifier> arg_qualifiers);
+    
+    const TemplateCallableDecl* _template = nullptr;
+};
+
+// Specialized method generated from template (inherits from MethodDecl)
+struct SpecializedMethodDecl : public MethodDecl
+{
+public:
+    const TemplateCallableDecl* template_decl() const { return _template; }
+    
+    // Override to indicate this is a specialization
+    bool is_template_specialization() const { return true; }
+
+protected:
+    friend struct AST;
+    friend struct TemplateCallableDecl;
+    SpecializedMethodDecl(AST& ast, const TemplateCallableDecl* template_decl, 
+                         std::span<const TypeDecl* const> arg_types,
+                         std::span<const EVariableQualifier> arg_qualifiers);
+    
+    const TemplateCallableDecl* _template = nullptr;
 };
 
 } // namespace skr::SSL

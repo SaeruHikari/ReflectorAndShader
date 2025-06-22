@@ -243,4 +243,113 @@ ConstructorDecl::ConstructorDecl(AST& ast, TypeDecl* owner, const Name& name, st
 
 }
 
+VarConceptDecl::VarConceptDecl(AST& ast, const Name& name)
+    : NamedDecl(ast, name)
+{
+
+}
+
+const Stmt* VarConceptDecl::body() const
+{
+    return nullptr; // Concepts have no body
+}
+
+TemplateCallableDecl::TemplateCallableDecl(AST& ast, const Name& name, const TypeDecl* return_type, 
+                                         std::span<const VarConceptDecl* const> param_concepts)
+    : NamedDecl(ast, name), _owner(nullptr), _return_type(return_type)
+{
+    _parameter_concepts.reserve(param_concepts.size());
+    for (auto param_concept : param_concepts) {
+        _parameter_concepts.push_back(param_concept);
+    }
+}
+
+TemplateCallableDecl::TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type,
+                                         std::span<const VarConceptDecl* const> param_concepts)
+    : NamedDecl(ast, name), _owner(owner), _return_type(return_type)
+{
+    _parameter_concepts.reserve(param_concepts.size());
+    for (auto param_concept : param_concepts) {
+        _parameter_concepts.push_back(param_concept);
+    }
+}
+
+const TypeDecl* TemplateCallableDecl::get_return_type_for(std::span<const TypeDecl* const> arg_types) const
+{
+    // For now, return the base return type
+    // In the future, this could be extended to compute return type based on argument types
+    // For example, for generic math functions like max(T, T) -> T
+    return _return_type;
+}
+
+bool TemplateCallableDecl::can_call_with(std::span<const TypeDecl* const> arg_types, 
+                                        std::span<const EVariableQualifier> arg_qualifiers) const
+{
+    if (arg_types.size() != _parameter_concepts.size() || 
+        arg_qualifiers.size() != _parameter_concepts.size()) {
+        return false;
+    }
+      for (size_t i = 0; i < arg_types.size(); ++i) {
+        const auto& param_concept = _parameter_concepts[i];
+        // Check both type and qualifier constraints in validate method
+        if (!param_concept->validate(arg_qualifiers[i], arg_types[i])) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+FunctionDecl* TemplateCallableDecl::specialize_for(std::span<const TypeDecl* const> arg_types, 
+                                                  std::span<const EVariableQualifier> arg_qualifiers) const
+{
+    if (!can_call_with(arg_types, arg_qualifiers)) {
+        return nullptr;
+    }
+    
+    // Create specialized function or method based on whether this template has an owner
+    if (is_method()) {
+        return new SpecializedMethodDecl(const_cast<AST&>(ast()), this, arg_types, arg_qualifiers);
+    } else {
+        return new SpecializedFunctionDecl(const_cast<AST&>(ast()), this, arg_types, arg_qualifiers);
+    }
+}
+
+// SpecializedFunctionDecl implementation
+SpecializedFunctionDecl::SpecializedFunctionDecl(AST& ast, const TemplateCallableDecl* template_decl, 
+                                                 std::span<const TypeDecl* const> arg_types,
+                                                 std::span<const EVariableQualifier> arg_qualifiers)
+    : FunctionDecl(ast, template_decl->name(), template_decl->get_return_type_for(arg_types), {}, nullptr), 
+      _template(template_decl)
+{
+    // Create concrete parameters from template concepts and argument types
+    _parameters.reserve(arg_types.size());
+    auto concepts = template_decl->parameter_concepts();
+    
+    for (size_t i = 0; i < arg_types.size(); ++i) {
+        auto param_name = concepts[i]->name(); // Use concept name as parameter name
+        auto param = ast.DeclareParam(arg_qualifiers[i], arg_types[i], param_name);
+        _parameters.push_back(param);
+    }
+}
+
+// SpecializedMethodDecl implementation
+SpecializedMethodDecl::SpecializedMethodDecl(AST& ast, const TemplateCallableDecl* template_decl, 
+                                             std::span<const TypeDecl* const> arg_types,
+                                             std::span<const EVariableQualifier> arg_qualifiers)
+    : MethodDecl(ast, const_cast<TypeDecl*>(template_decl->owner_type()), template_decl->name(), 
+                 template_decl->get_return_type_for(arg_types), {}, nullptr), 
+      _template(template_decl)
+{
+    // Create concrete parameters from template concepts and argument types
+    _parameters.reserve(arg_types.size());
+    auto concepts = template_decl->parameter_concepts();
+    
+    for (size_t i = 0; i < arg_types.size(); ++i) {
+        auto param_name = concepts[i]->name(); // Use concept name as parameter name
+        auto param = ast.DeclareParam(arg_qualifiers[i], arg_types[i], param_name);
+        _parameters.push_back(param);
+    }
+}
+
 }

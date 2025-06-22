@@ -704,8 +704,34 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         {
             ReportFatalError(x, "Array access operator is not supported yet: {}", cxxCall->getStmtClassName());
         }
-        else if (IsCallOp(funcDecl))
+        else if (auto AsCallOp = IsCallOp(funcDecl))
         {
+            auto name = GetArgumentAt<clang::StringRef>(AsCallOp, 1);
+            if (auto Intrin = AST.FindIntrinsic(name.data()))
+            {
+                std::vector<const TypeDecl*> arg_types;
+                std::vector<EVariableQualifier> arg_qualifiers;
+                arg_types.reserve(cxxCall->getNumArgs());
+                arg_qualifiers.reserve(cxxCall->getNumArgs());
+                for (size_t i = 0; i < cxxCall->getNumArgs(); ++i)
+                {
+                    arg_types.emplace_back(getType(cxxCall->getArg(i)->getType().getTypePtr()));
+                    arg_qualifiers.emplace_back(EVariableQualifier::None);
+                }
+                // TODO: CACHE THIS
+                if (auto Spec = AST.SpecializeTemplateFunction(Intrin, arg_types, arg_qualifiers))
+                {
+                    std::vector<SSL::Expr*> args;
+                    args.reserve(cxxCall->getNumArgs());
+                    for (auto arg : cxxCall->arguments())
+                    {
+                        args.emplace_back(traverseStmt<SSL::Expr>(arg));
+                    }
+                    return AST.CallFunction(Spec->ref(), args);
+                }
+                else
+                    ReportFatalError(x, "Failed to specialize template function: {}", name.str());
+            }
             return AST.Constant(IntValue(1919810));
         }
         else if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))

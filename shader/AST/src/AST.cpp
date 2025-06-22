@@ -1,8 +1,24 @@
 #include "SSL/AST.hpp"
-#include <stdexcept>
+#include <array>
 
 namespace skr::SSL 
 {
+
+struct DefaultVarConceptDecl : public VarConceptDecl
+{
+    DefaultVarConceptDecl(AST& ast, const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator)
+        : VarConceptDecl(ast, name), validator(std::move(validator))
+    {
+
+    }
+
+    bool validate(EVariableQualifier qualifier, const TypeDecl* type) const override
+    {
+        return validator(qualifier, type);
+    }
+
+    std::function<bool(EVariableQualifier, const TypeDecl*)> validator;
+};
 
 BinaryExpr* AST::Binary(BinaryOp op, Expr* left, Expr* right)
 {
@@ -293,6 +309,13 @@ ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* ty
     return decl;
 }
 
+VarConceptDecl* AST::DeclareVarConcept(const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator)
+{
+    auto decl = new DefaultVarConceptDecl(*this, name, std::move(validator));
+    _decls.emplace_back(decl);
+    return decl;
+}
+
 ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 {
     auto&& iter = _buffers.find(nullptr);
@@ -365,19 +388,60 @@ AST::AST() :
 
     INIT_BUILTIN_TYPE(UInt, uint32_t, uint),
     INIT_VEC_TYPES(UInt, uint32_t, uint),
-    // INIT_MATRIX_TYPE(UInt, uint32_t, uint),
-
-    INIT_BUILTIN_TYPE(Double, double, double),
+    // INIT_MATRIX_TYPE(UInt, uint32_t, uint),    INIT_BUILTIN_TYPE(Double, double, double),
     INIT_BUILTIN_TYPE(I64, int64_t, int64),
     INIT_BUILTIN_TYPE(U64, uint64_t, uint64)
 {
-    
+    auto FloatFamily = DeclareVarConcept(L"FloatFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == FloatType || type == Float2Type || type == Float3Type || type == Float4Type;
+        });
+    auto BoolFamily = DeclareVarConcept(L"BoolFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == BoolType || type == Bool2Type || type == Bool3Type || type == Bool4Type;
+        });
+
+    std::array<VarConceptDecl*, 1> TriangleFunctionParams = { FloatFamily };
+    _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", Float3Type, TriangleFunctionParams);
 }
 
-#undef INIT_MATRIX_TYPE
-#undef INIT_VEC_TYPES
-#undef INIT_BUILTIN_TYPE
-#undef USTR
+// Template function/method declarations
+TemplateCallableDecl* AST::DeclareTemplateFunction(const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts)
+{
+    auto decl = new TemplateCallableDecl(*this, name, return_type, param_concepts);
+    _decls.emplace_back(decl);
+    return decl;
+}
+
+TemplateCallableDecl* AST::DeclareTemplateMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts)
+{
+    auto decl = new TemplateCallableDecl(*this, owner, name, return_type, param_concepts);
+    _decls.emplace_back(decl);
+    return decl;
+}
+
+SpecializedFunctionDecl* AST::SpecializeTemplateFunction(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers)
+{
+    // Create new specialization
+    auto specialized = (SpecializedFunctionDecl*)template_decl->specialize_for(arg_types, arg_qualifiers);
+    _decls.emplace_back(specialized);
+    return specialized;
+}
+
+const TemplateCallableDecl* AST::FindIntrinsic(const char* name) const
+{
+    auto it = _template_intrinstics.find(name);
+    if (it != _template_intrinstics.end())
+        return it->second;
+    return nullptr;
+}
+
+SpecializedMethodDecl* AST::SpecializeTemplateMethod(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers)
+{
+    auto specialized = (SpecializedMethodDecl*)template_decl->specialize_for(arg_types, arg_qualifiers);
+    _decls.emplace_back(specialized);
+    return specialized;
+}
 
 AST::~AST()
 {
