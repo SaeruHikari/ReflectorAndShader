@@ -49,8 +49,11 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     bool isStatement = false;
     if (auto parent = stmt->parent())
     {
-        isStatement = dynamic_cast<const CompoundStmt*>(parent);
+        isStatement |= dynamic_cast<const CompoundStmt*>(parent) != nullptr;
     }
+    isStatement &= !dynamic_cast<const IfStmt*>(stmt);
+    isStatement &= !dynamic_cast<const ForStmt*>(stmt);
+    isStatement &= !dynamic_cast<const CompoundStmt*>(stmt);
 
     if (auto binary = dynamic_cast<const BinaryExpr*>(stmt))
     {
@@ -252,10 +255,25 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     }
     else if (auto constructExpr = dynamic_cast<const ConstructExpr*>(stmt))
     {
-        sb.append(constructExpr->type()->name() + L"(");
-        for (size_t i = 0; i < constructExpr->args().size(); i++)
+        std::span<Expr* const> args;
+        std::vector<Expr*> modified_args;
+        if (auto AsVector = dynamic_cast<const VectorTypeDecl*>(constructExpr->type()); 
+            AsVector && (constructExpr->args().size() == 1) && dynamic_cast<const ScalarTypeDecl*>(constructExpr->args()[0]->type())
+        )
         {
-            auto arg = constructExpr->args()[i];
+            for (uint32_t i = 0; i < AsVector->count(); i++)
+                modified_args.emplace_back(constructExpr->args()[0]);
+            args = modified_args;
+        }
+        else
+        {
+            args = constructExpr->args();
+        }
+
+        sb.append(constructExpr->type()->name() + L"(");
+        for (size_t i = 0; i < args.size(); i++)
+        {
+            auto arg = args[i];
             if (i > 0)
                 sb.append(L", ");
             visitExpr(sb, arg);
@@ -317,18 +335,17 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     {
         sb.append(L"if (");
         visitExpr(sb, ifStmt->cond());
-        sb.append(L") ");
-        sb.indent([&](){
-            visitExpr(sb, ifStmt->then_body());
-        });
+        sb.append(L")");
+        sb.endline();
+        visitExpr(sb, ifStmt->then_body());
 
         if (ifStmt->else_body())
         {
-            sb.append(L" else ");
-            sb.indent([&](){
-                visitExpr(sb, ifStmt->else_body());
-            });
+            sb.append(L"else");
+            sb.endline();
+            visitExpr(sb, ifStmt->else_body());
         }
+        sb.endline();
     }
     else if (auto initList = dynamic_cast<const InitListExpr*>(stmt))
     {
@@ -621,8 +638,25 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl
 }
 
 static const skr::SSL::String kHLSLHeader = LR"(
-template <typename T> void buffer_write(RWStructuredBuffer<T> buffer, uint index, T value) { buffer[index] = value; }
-template <typename T> T buffer_read(RWStructuredBuffer<T> buffer, uint index) { return buffer[index]; }
+template <typename _ELEM> void buffer_write(RWStructuredBuffer<_ELEM> buffer, uint index, _ELEM value) { buffer[index] = value; }
+template <typename _ELEM> _ELEM buffer_read(RWStructuredBuffer<_ELEM> buffer, uint index) { return buffer[index]; }
+template <typename _ELEM, uint64_t N> struct array { _ELEM data[N]; };
+
+template <typename _TEX> float4 texture2d_sample(_TEX tex, uint2 uv, uint filter, uint address) { return float4(1, 1, 1, 1); }
+template <typename _TEX> float4 texture3d_sample(_TEX tex, uint3 uv, uint filter, uint address) { return float4(1, 1, 1, 1); }
+
+template <typename _ELEM> _ELEM texture_read(Texture2D<_ELEM> tex, uint2 uv) { return tex.Load(uv); }
+template <typename _ELEM> _ELEM texture_read(RWTexture2D<_ELEM> tex, uint2 uv) { return tex.Load(uv); }
+template <typename _ELEM> _ELEM texture_write(RWTexture2D<_ELEM> tex, uint2 uv, _ELEM v) { return tex[uv] = v; }
+
+template <typename _ELEM> uint2 texture_size(Texture2D<_ELEM> tex) { uint Width, Height, Mips; tex.GetDimensions(0, Width, Height, Mips); return uint2(Width, Height); }
+template <typename _ELEM> uint2 texture_size(RWTexture2D<_ELEM> tex) { uint Width, Height; tex.GetDimensions(Width, Height); return uint2(Width, Height); }
+template <typename _ELEM> uint3 texture_size(Texture3D<_ELEM> tex) { uint Width, Height, Depth, Mips; tex.GetDimensions(0, Width, Height, Depth, Mips); return uint3(Width, Height, Depth); }
+template <typename _ELEM> uint3 texture_size(RWTexture3D<_ELEM> tex) { uint Width, Height, Depth; tex.GetDimensions(Width, Height, Depth); return uint3(Width, Height, Depth); }
+
+// TODO: DELETE
+uint2 luisa__shader__dispatch_size() { return uint2(0, 0); }
+uint2 luisa__shader__dispatch_id() { return uint2(0, 0); }
 )";
 
 String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)

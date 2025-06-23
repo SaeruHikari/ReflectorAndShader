@@ -121,6 +121,26 @@ MethodDecl* TypeDecl::get_method(const Name& name) const
     return nullptr;
 }
 
+ScalarTypeDecl::ScalarTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment)
+    : TypeDecl(ast, name, size, alignment, {}, true)
+{
+
+}
+
+VectorTypeDecl::VectorTypeDecl(AST& ast, const TypeDecl* element, uint32_t count, uint32_t alignment)
+    : TypeDecl(ast, std::format(L"{}{}", element->name(), count), element->size() * count, alignment, {}, true),
+    _element(element), _count(count)
+{
+
+}
+
+MatrixTypeDecl::MatrixTypeDecl(AST& ast, const TypeDecl* element, uint32_t n, uint32_t alignment)
+    : TypeDecl(ast, std::format(L"{}{}x{}", element->name(), n, n), element->size() * n * n, alignment, {}, true),
+    _element(element), _n(n)
+{
+
+}
+
 ResourceTypeDecl::ResourceTypeDecl(AST& ast, const String& name)
     : TypeDecl(ast, name, 0, 0, {}, true)
 {

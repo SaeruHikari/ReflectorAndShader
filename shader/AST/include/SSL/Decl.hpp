@@ -102,6 +102,40 @@ protected:
     std::vector<ConstructorDecl*> _ctors;
 };
 
+struct ScalarTypeDecl : public TypeDecl
+{
+protected:
+    friend struct AST;
+    ScalarTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment);
+};
+
+struct VectorTypeDecl : public TypeDecl
+{
+public:
+    const auto& element() const { return _element; }
+    uint32_t count() const { return _count; }
+
+protected:
+    friend struct AST;
+    VectorTypeDecl(AST& ast, const TypeDecl* element, uint32_t count, uint32_t alignment);
+    const TypeDecl* _element = nullptr; 
+    uint32_t _count = 0; 
+};
+
+struct MatrixTypeDecl : public TypeDecl
+{
+public:
+    const auto& columns() const { return _n; }
+    const auto& rows() const { return _n; }
+    const auto& element() const { return _element; }
+
+protected:
+    friend struct AST;
+    MatrixTypeDecl(AST& ast, const TypeDecl* element, uint32_t n, uint32_t alignment);
+    const TypeDecl* _element = nullptr; 
+    uint32_t _n = 0;
+};
+
 struct ResourceTypeDecl : public TypeDecl
 {
 protected:

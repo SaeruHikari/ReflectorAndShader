@@ -59,7 +59,10 @@ public:
     WhileStmt* While(Expr* cond, CompoundStmt* body);
 
     TypeDecl* DeclareType(const Name& name, std::span<FieldDecl*> members);
-    const TypeDecl* DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
+    const TypeDecl* DeclareBuiltinType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
+    const ScalarTypeDecl* DeclareScalarType(const Name& name, uint32_t size, uint32_t alignment = 4);
+    const VectorTypeDecl* DeclareVectorType(const TypeDecl* element, uint32_t count, uint32_t alignment);
+    const MatrixTypeDecl* DeclareMatrixType(const TypeDecl* element, uint32_t n, uint32_t alignment);
     const ArrayTypeDecl* DeclareArrayType(const TypeDecl* element, uint32_t count);
     GlobalVarDecl* DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
     GlobalVarDecl* DeclareGlobalResource(const TypeDecl* type, const Name& name);

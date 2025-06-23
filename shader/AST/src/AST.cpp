@@ -252,12 +252,36 @@ TypeDecl* AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
     return new_type;
 }
 
-const TypeDecl* AST::DeclarePrimitiveType(const Name& name, uint32_t size, uint32_t alignment, std::vector<FieldDecl*> fields)
+const TypeDecl* AST::DeclareBuiltinType(const Name& name, uint32_t size, uint32_t alignment, std::vector<FieldDecl*> fields)
 {
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
     auto new_type = new TypeDecl(*this, name, size, alignment, fields, true);
+    _types.emplace_back(new_type);
+    return new_type;
+}
+
+const ScalarTypeDecl* AST::DeclareScalarType(const Name& name, uint32_t size, uint32_t alignment)
+{
+    auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
+    if (found != _types.end())
+        return nullptr;
+    auto new_type = new ScalarTypeDecl(*this, name, size, alignment);
+    _types.emplace_back(new_type);
+    return new_type;
+}
+
+const VectorTypeDecl* AST::DeclareVectorType(const TypeDecl* element, uint32_t count, uint32_t alignment)
+{
+    auto new_type = new VectorTypeDecl(*this, element, count, alignment);
+    _types.emplace_back(new_type);
+    return new_type;
+}
+
+const MatrixTypeDecl* AST::DeclareMatrixType(const TypeDecl* element, uint32_t n, uint32_t alignment)
+{
+    auto new_type = new MatrixTypeDecl(*this, element, n, alignment);
     _types.emplace_back(new_type);
     return new_type;
 }
@@ -461,20 +485,20 @@ SpecializedMethodDecl* AST::SpecializeTemplateMethod(const TemplateCallableDecl*
 }
 
 #define USTR(x) L ## #x
-#define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclarePrimitiveType(USTR(name), sizeof(type), alignof(type)))
+#define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclareScalarType(USTR(name), sizeof(type), alignof(type)))
 
 #define INIT_VEC_TYPES(symbol, type, name) \
-    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
-    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y", L"z"))), \
-    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z", L"w")))
+    symbol##2Type(DeclareVectorType(symbol##Type, 2, alignof(vec<type, 2>))), \
+    symbol##3Type(DeclareVectorType(symbol##Type, 3, alignof(vec<type, 3>))), \
+    symbol##4Type(DeclareVectorType(symbol##Type, 4, alignof(vec<type, 4>)))
 
 #define INIT_MATRIX_TYPE(symbol, type, name) \
-    symbol##2x2Type(DeclarePrimitiveType(USTR(name##2x2), sizeof(matrix<type, 2, 2>), alignof(matrix<type, 2, 2>))), \
-    symbol##3x3Type(DeclarePrimitiveType(USTR(name##3x3), sizeof(matrix<type, 3, 3>), alignof(matrix<type, 3, 3>))), \
-    symbol##4x4Type(DeclarePrimitiveType(USTR(name##4x4), sizeof(matrix<type, 4, 4>), alignof(matrix<type, 4, 4>)))
+    symbol##2x2Type(DeclareMatrixType(symbol##Type, 2, alignof(matrix<type, 2, 2>))), \
+    symbol##3x3Type(DeclareMatrixType(symbol##Type, 3, alignof(matrix<type, 3, 3>))), \
+    symbol##4x4Type(DeclareMatrixType(symbol##Type, 4, alignof(matrix<type, 4, 4>))) 
 
 AST::AST() : 
-    VoidType(DeclarePrimitiveType(L"void", 0, 0)),
+    VoidType(DeclareBuiltinType(L"void", 0, 0)),
     
     INIT_BUILTIN_TYPE(Bool, GPUBool, bool),
     INIT_VEC_TYPES(Bool, GPUBool, bool),
@@ -612,6 +636,13 @@ void AST::DeclareIntrinstics()
         });
 
     auto ReturnFirstArgType = [=](auto pts){ return pts[0]; };
+    auto ReturnBoolVecWithSameDim = [this](auto pts) {
+        const TypeDecl* inputType = pts[0];
+        if (inputType == Float2Type || inputType == Int2Type || inputType == UInt2Type) return Bool2Type;
+        if (inputType == Float3Type || inputType == Int3Type || inputType == UInt3Type) return Bool3Type;
+        if (inputType == Float4Type || inputType == Int4Type || inputType == UInt4Type) return Bool4Type;
+        return BoolType; 
+    };
 
     std::array<VarConceptDecl*, 1> OneArithmetic = { ArthmeticFamily };
     _intrinstics["ABS"] = DeclareTemplateFunction(L"abs", ReturnFirstArgType, OneArithmetic);
@@ -670,19 +701,8 @@ void AST::DeclareIntrinstics()
     _intrinstics["SATURATE"] = DeclareTemplateFunction(L"saturate", ReturnFirstArgType, OneFloatFamily);
     _intrinstics["DDX"] = DeclareTemplateFunction(L"ddx", ReturnFirstArgType, OneFloatFamily);
     _intrinstics["DDY"] = DeclareTemplateFunction(L"ddy", ReturnFirstArgType, OneFloatFamily);
-
-    auto FloatToBoolReturnSpec = [this](auto pts) {
-        const TypeDecl* inputType = pts[0];
-        if (inputType == FloatType || inputType == HalfType) {
-            return BoolType;
-        }
-        if (inputType == Float2Type) return Bool2Type;
-        if (inputType == Float3Type) return Bool3Type;
-        if (inputType == Float4Type) return Bool4Type;
-        return BoolType; // 默认返回bool
-    };
-    _intrinstics["ISINF"] = DeclareTemplateFunction(L"is_inf", FloatToBoolReturnSpec, OneFloatFamily);
-    _intrinstics["ISNAN"] = DeclareTemplateFunction(L"is_nan", FloatToBoolReturnSpec, OneFloatFamily);
+    _intrinstics["ISINF"] = DeclareTemplateFunction(L"is_inf", ReturnBoolVecWithSameDim, OneFloatFamily);
+    _intrinstics["ISNAN"] = DeclareTemplateFunction(L"is_nan", ReturnBoolVecWithSameDim, OneFloatFamily);
 
     std::array<VarConceptDecl*, 2> TwoFloatFamily = { FloatFamily, FloatFamily };
     _intrinstics["POW"] = DeclareTemplateFunction(L"pow", ReturnFirstArgType, TwoFloatFamily);
@@ -770,15 +790,8 @@ void AST::DeclareIntrinstics()
     std::array<VarConceptDecl*, 7> Texture3DSampleGradLevelParams = { FloatTexture3DFamily, FloatVector3D, FloatVector3D, FloatVector3D, FloatScalar, IntScalar, IntScalar };
     _intrinstics["TEXTURE3D_SAMPLE_GRAD_LEVEL"] = DeclareTemplateFunction(L"texture3d_sample_grad_level", Float4Type, Texture3DSampleGradLevelParams);
 
-    auto BoolVecReturnSpec = [this](auto pts) {
-        const TypeDecl* inputType = pts[0];
-        if (inputType == Float2Type || inputType == Int2Type || inputType == UInt2Type) return Bool2Type;
-        if (inputType == Float3Type || inputType == Int3Type || inputType == UInt3Type) return Bool3Type;
-        if (inputType == Float4Type || inputType == Int4Type || inputType == UInt4Type) return Bool4Type;
-        return BoolType; 
-    };
     _intrinstics["WAVE_IS_FIRST_ACTIVE_LANE"] = DeclareTemplateFunction(L"wave_is_first_active_lane", BoolType, {});
-    _intrinstics["WAVE_ACTIVE_ALL_EQUAL"] = DeclareTemplateFunction(L"wave_active_all_equal", BoolVecReturnSpec, OneArithmeticVec);
+    _intrinstics["WAVE_ACTIVE_ALL_EQUAL"] = DeclareTemplateFunction(L"wave_active_all_equal", ReturnBoolVecWithSameDim, OneArithmeticVec);
     _intrinstics["WAVE_ACTIVE_BIT_AND"] = DeclareTemplateFunction(L"wave_active_bit_and", ReturnFirstArgType, OneIntFamily);
     _intrinstics["WAVE_ACTIVE_BIT_OR"] = DeclareTemplateFunction(L"wave_active_bit_or", ReturnFirstArgType, OneIntFamily);
     _intrinstics["WAVE_ACTIVE_BIT_XOR"] = DeclareTemplateFunction(L"wave_active_bit_xor", ReturnFirstArgType, OneIntFamily);

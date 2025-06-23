@@ -575,10 +575,14 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
                     return traverseStmt(cxxBranch->getElse());
             }
         } else {
+            auto cxxThen = cxxBranch->getThen();
+            auto cxxElse = cxxBranch->getElse();
             auto _cond = traverseStmt<SSL::Expr>(cxxCond);
-            auto _then = traverseStmt<SSL::CompoundStmt>(cxxBranch->getThen());
-            auto _else = traverseStmt<SSL::CompoundStmt>(cxxBranch->getElse());
-            return AST.If(_cond, _then, _else);
+            auto _then = traverseStmt(cxxThen);
+            auto _else = traverseStmt(cxxElse);
+            SSL::CompoundStmt* _then_body = cxxThen ? llvm::dyn_cast<clang::CompoundStmt>(cxxThen) ? (SSL::CompoundStmt*)_then : AST.Block({_then}) : nullptr;
+            SSL::CompoundStmt* _else_body = cxxElse ? llvm::dyn_cast<clang::CompoundStmt>(cxxElse) ? (SSL::CompoundStmt*)_else : AST.Block({_else}) : nullptr;
+            return AST.If(_cond, _then_body, _else_body);
         }
     } 
     else if (auto cxxSwitch = llvm::dyn_cast<clang::SwitchStmt>(x)) 
@@ -746,6 +750,9 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
     }
     else if (auto cxxConstructor = llvm::dyn_cast<clang::CXXConstructExpr>(x))
     {
+        if (LanguageRule_UseAssignForImplicitCopyOrMove(cxxConstructor->getConstructor()))
+            return traverseStmt(cxxConstructor->getArg(0));
+
         auto SSLType = getType(cxxConstructor->getType().getTypePtr());
         if (!SSLType->is_builtin())
         {
