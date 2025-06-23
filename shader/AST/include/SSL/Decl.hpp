@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "Stmt.hpp"
 
 namespace skr::SSL {
@@ -215,10 +216,12 @@ protected:
 struct TemplateCallableDecl : public NamedDecl
 {
 public:
+    using ReturnTypeSpecializer = std::function<const TypeDecl*(std::span<const TypeDecl* const>)>;
+    
     const Stmt* body() const override { return nullptr; } // Templates have no body
     
     // Get the return type for specific argument types (may depend on arguments)
-    virtual const TypeDecl* get_return_type_for(std::span<const TypeDecl* const> arg_types) const;
+    virtual const TypeDecl* get_return_type_for(std::span<const TypeDecl* const> arg_types) const = 0;
     
     // Get parameter concepts for validation
     std::span<const VarConceptDecl* const> parameter_concepts() const { return _parameter_concepts; }
@@ -238,12 +241,11 @@ public:
 protected:
     friend struct AST;
     // Constructor for template function
-    TemplateCallableDecl(AST& ast, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    TemplateCallableDecl(AST& ast, const Name& name, std::span<const VarConceptDecl* const> param_concepts);
     // Constructor for template method
-    TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<const VarConceptDecl* const> param_concepts);
     
-    const TypeDecl* _owner = nullptr; // nullptr for functions, owner type for methods
-    const TypeDecl* _return_type = nullptr; // Base return type, may be modified based on arguments
+    const TypeDecl* _owner = nullptr;
     std::vector<const VarConceptDecl*> _parameter_concepts;
 };
 

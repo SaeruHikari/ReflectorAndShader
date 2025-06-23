@@ -4,21 +4,39 @@
 namespace skr::SSL 
 {
 
-struct DefaultVarConceptDecl : public VarConceptDecl
+struct VarConcept : public VarConceptDecl
 {
-    DefaultVarConceptDecl(AST& ast, const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator)
+    VarConcept(AST& ast, const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator)
         : VarConceptDecl(ast, name), validator(std::move(validator))
     {
 
     }
-
     bool validate(EVariableQualifier qualifier, const TypeDecl* type) const override
     {
         return validator(qualifier, type);
     }
-
     std::function<bool(EVariableQualifier, const TypeDecl*)> validator;
 };
+
+struct TemplateCallable : public TemplateCallableDecl
+{
+    TemplateCallable(AST& ast, const Name& name, ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts)
+        : TemplateCallableDecl(ast, name, param_concepts), ret_spec(ret_spec)
+    {
+
+    }
+    TemplateCallable(AST& ast, TypeDecl* owner, const Name& name, ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts)
+        : TemplateCallableDecl(ast, owner, name, param_concepts), ret_spec(ret_spec)
+    {
+
+    }
+    const TypeDecl* get_return_type_for(std::span<const TypeDecl* const> arg_types) const
+    {
+        return ret_spec(arg_types);
+    }
+    ReturnTypeSpecializer ret_spec;
+};
+
 
 BinaryExpr* AST::Binary(BinaryOp op, Expr* left, Expr* right)
 {
@@ -311,7 +329,7 @@ ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* ty
 
 VarConceptDecl* AST::DeclareVarConcept(const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator)
 {
-    auto decl = new DefaultVarConceptDecl(*this, name, std::move(validator));
+    auto decl = new VarConcept(*this, name, std::move(validator));
     _decls.emplace_back(decl);
     return decl;
 }
@@ -402,20 +420,34 @@ AST::AST() :
         });
 
     std::array<VarConceptDecl*, 1> TriangleFunctionParams = { FloatFamily };
-    _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", Float3Type, TriangleFunctionParams);
+    _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
 }
 
 // Template function/method declarations
 TemplateCallableDecl* AST::DeclareTemplateFunction(const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts)
 {
-    auto decl = new TemplateCallableDecl(*this, name, return_type, param_concepts);
+    auto decl = new TemplateCallable(*this, name, [=](auto params){ return return_type; }, param_concepts);
+    _decls.emplace_back(decl);
+    return decl;
+}
+
+TemplateCallableDecl* AST::DeclareTemplateFunction(const Name& name, TemplateCallableDecl::ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts)
+{
+    auto decl = new TemplateCallable(*this, name, ret_spec, param_concepts);
     _decls.emplace_back(decl);
     return decl;
 }
 
 TemplateCallableDecl* AST::DeclareTemplateMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts)
 {
-    auto decl = new TemplateCallableDecl(*this, owner, name, return_type, param_concepts);
+    auto decl = new TemplateCallable(*this, owner, name, [=](auto params){ return return_type; }, param_concepts);
+    _decls.emplace_back(decl);
+    return decl;
+}
+
+TemplateCallableDecl* AST::DeclareTemplateMethod(TypeDecl* owner, const Name& name, TemplateCallableDecl::ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts)
+{
+    auto decl = new TemplateCallable(*this, owner, name, ret_spec, param_concepts);
     _decls.emplace_back(decl);
     return decl;
 }

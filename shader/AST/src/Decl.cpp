@@ -254,9 +254,8 @@ const Stmt* VarConceptDecl::body() const
     return nullptr; // Concepts have no body
 }
 
-TemplateCallableDecl::TemplateCallableDecl(AST& ast, const Name& name, const TypeDecl* return_type, 
-                                         std::span<const VarConceptDecl* const> param_concepts)
-    : NamedDecl(ast, name), _owner(nullptr), _return_type(return_type)
+TemplateCallableDecl::TemplateCallableDecl(AST& ast, const Name& name, std::span<const VarConceptDecl* const> param_concepts)
+    : NamedDecl(ast, name), _owner(nullptr)
 {
     _parameter_concepts.reserve(param_concepts.size());
     for (auto param_concept : param_concepts) {
@@ -264,22 +263,13 @@ TemplateCallableDecl::TemplateCallableDecl(AST& ast, const Name& name, const Typ
     }
 }
 
-TemplateCallableDecl::TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, const TypeDecl* return_type,
-                                         std::span<const VarConceptDecl* const> param_concepts)
-    : NamedDecl(ast, name), _owner(owner), _return_type(return_type)
+TemplateCallableDecl::TemplateCallableDecl(AST& ast, TypeDecl* owner, const Name& name, std::span<const VarConceptDecl* const> param_concepts)
+    : NamedDecl(ast, name), _owner(owner)
 {
     _parameter_concepts.reserve(param_concepts.size());
     for (auto param_concept : param_concepts) {
         _parameter_concepts.push_back(param_concept);
     }
-}
-
-const TypeDecl* TemplateCallableDecl::get_return_type_for(std::span<const TypeDecl* const> arg_types) const
-{
-    // For now, return the base return type
-    // In the future, this could be extended to compute return type based on argument types
-    // For example, for generic math functions like max(T, T) -> T
-    return _return_type;
 }
 
 bool TemplateCallableDecl::can_call_with(std::span<const TypeDecl* const> arg_types, 

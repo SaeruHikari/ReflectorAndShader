@@ -72,7 +72,9 @@ public:
     ParamVarDecl* DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name);
     VarConceptDecl* DeclareVarConcept(const Name& name, std::function<bool(EVariableQualifier, const TypeDecl*)> validator);    
     TemplateCallableDecl* DeclareTemplateFunction(const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    TemplateCallableDecl* DeclareTemplateFunction(const Name& name, TemplateCallableDecl::ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts);
     TemplateCallableDecl* DeclareTemplateMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const VarConceptDecl* const> param_concepts);
+    TemplateCallableDecl* DeclareTemplateMethod(TypeDecl* owner, const Name& name, TemplateCallableDecl::ReturnTypeSpecializer ret_spec, std::span<const VarConceptDecl* const> param_concepts);
     
     const TemplateCallableDecl* FindIntrinsic(const char* name) const;
     SpecializedFunctionDecl* SpecializeTemplateFunction(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
