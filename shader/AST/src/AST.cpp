@@ -778,24 +778,24 @@ void AST::DeclareIntrinstics()
         return BoolType; 
     };
     _intrinstics["WAVE_IS_FIRST_ACTIVE_LANE"] = DeclareTemplateFunction(L"wave_is_first_active_lane", BoolType, {});
-    _intrinstics["WARP_ACTIVE_ALL_EQUAL"] = DeclareTemplateFunction(L"warp_active_all_equal", BoolVecReturnSpec, OneArithmeticVec);
-    _intrinstics["WARP_ACTIVE_BIT_AND"] = DeclareTemplateFunction(L"warp_active_bit_and", ReturnFirstArgType, OneIntFamily);
-    _intrinstics["WARP_ACTIVE_BIT_OR"] = DeclareTemplateFunction(L"warp_active_bit_or", ReturnFirstArgType, OneIntFamily);
-    _intrinstics["WARP_ACTIVE_BIT_XOR"] = DeclareTemplateFunction(L"warp_active_bit_xor", ReturnFirstArgType, OneIntFamily);
-    _intrinstics["WARP_ACTIVE_COUNT_BITS"] = DeclareTemplateFunction(L"warp_active_count_bits", UIntType, OneBoolFamily);
-    _intrinstics["WARP_ACTIVE_MAX"] = DeclareTemplateFunction(L"warp_active_max", ReturnFirstArgType, OneArithmetic);
-    _intrinstics["WARP_ACTIVE_MIN"] = DeclareTemplateFunction(L"warp_active_min", ReturnFirstArgType, OneArithmetic);
-    _intrinstics["WARP_ACTIVE_PRODUCT"] = DeclareTemplateFunction(L"warp_active_product", ReturnFirstArgType, OneArithmetic);
-    _intrinstics["WARP_ACTIVE_SUM"] = DeclareTemplateFunction(L"warp_active_sum", ReturnFirstArgType, OneArithmetic);
-    _intrinstics["WARP_ACTIVE_ALL"] = DeclareTemplateFunction(L"warp_active_all", BoolType, OneBoolFamily);
-    _intrinstics["WARP_ACTIVE_ANY"] = DeclareTemplateFunction(L"warp_active_any", BoolType, OneBoolFamily);
-    _intrinstics["WARP_ACTIVE_BIT_MASK"] = DeclareTemplateFunction(L"warp_active_bit_mask", UInt4Type, OneBoolFamily);
-    _intrinstics["WARP_PREFIX_COUNT_BITS"] = DeclareTemplateFunction(L"warp_prefix_count_bits", UIntType, OneBoolFamily);
-    _intrinstics["WARP_PREFIX_PRODUCT"] = DeclareTemplateFunction(L"warp_prefix_product", ReturnFirstArgType, OneArithmetic);
-    _intrinstics["WARP_PREFIX_SUM"] = DeclareTemplateFunction(L"warp_prefix_sum", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_ACTIVE_ALL_EQUAL"] = DeclareTemplateFunction(L"wave_active_all_equal", BoolVecReturnSpec, OneArithmeticVec);
+    _intrinstics["WAVE_ACTIVE_BIT_AND"] = DeclareTemplateFunction(L"wave_active_bit_and", ReturnFirstArgType, OneIntFamily);
+    _intrinstics["WAVE_ACTIVE_BIT_OR"] = DeclareTemplateFunction(L"wave_active_bit_or", ReturnFirstArgType, OneIntFamily);
+    _intrinstics["WAVE_ACTIVE_BIT_XOR"] = DeclareTemplateFunction(L"wave_active_bit_xor", ReturnFirstArgType, OneIntFamily);
+    _intrinstics["WAVE_ACTIVE_COUNT_BITS"] = DeclareTemplateFunction(L"wave_active_count_bits", UIntType, OneBoolFamily);
+    _intrinstics["WAVE_ACTIVE_MAX"] = DeclareTemplateFunction(L"wave_active_max", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_ACTIVE_MIN"] = DeclareTemplateFunction(L"wave_active_min", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_ACTIVE_PRODUCT"] = DeclareTemplateFunction(L"wave_active_product", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_ACTIVE_SUM"] = DeclareTemplateFunction(L"wave_active_sum", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_ACTIVE_ALL"] = DeclareTemplateFunction(L"wave_active_all", BoolType, OneBoolFamily);
+    _intrinstics["WAVE_ACTIVE_ANY"] = DeclareTemplateFunction(L"wave_active_any", BoolType, OneBoolFamily);
+    _intrinstics["WAVE_ACTIVE_BIT_MASK"] = DeclareTemplateFunction(L"wave_active_bit_mask", UInt4Type, OneBoolFamily);
+    _intrinstics["WAVE_PREFIX_COUNT_BITS"] = DeclareTemplateFunction(L"wave_prefix_count_bits", UIntType, OneBoolFamily);
+    _intrinstics["WAVE_PREFIX_PRODUCT"] = DeclareTemplateFunction(L"wave_prefix_product", ReturnFirstArgType, OneArithmetic);
+    _intrinstics["WAVE_PREFIX_SUM"] = DeclareTemplateFunction(L"wave_prefix_sum", ReturnFirstArgType, OneArithmetic);
 
-    // _intrinstics["WARP_READ_LANE"] = DeclareTemplateFunction(L"warp_read_lane", ReturnFirstArgType, WarpReadParams);
-    // _intrinstics["WARP_READ_FIRST_ACTIVE_LANE"] = DeclareTemplateFunction(L"warp_read_first_active_lane", ReturnFirstArgType, OnePrimitiveFamily);
+    // _intrinstics["WAVE_READ_LANE"] = DeclareTemplateFunction(L"wave_read_lane", ReturnFirstArgType, WarpReadParams);
+    // _intrinstics["WAVE_READ_FIRST_ACTIVE_LANE"] = DeclareTemplateFunction(L"wave_read_first_active_lane", ReturnFirstArgType, OnePrimitiveFamily);
 
     _intrinstics["SYNCHRONIZE_BLOCK"] = DeclareTemplateFunction(L"sync_block", VoidType, {});
 }
