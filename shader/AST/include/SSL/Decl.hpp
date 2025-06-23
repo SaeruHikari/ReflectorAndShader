@@ -138,6 +138,32 @@ protected:
     const TypeDecl* _element = nullptr; // the type of elements in the buffer
 };
 
+struct TextureTypeDecl : public ResourceTypeDecl
+{
+public:
+    const TypeDecl& element() const { return *_element; }
+    const auto flags() const { return _flags; }
+
+protected:
+    TextureTypeDecl(AST& ast, const String& name, const TypeDecl* element, TextureFlags flags);
+    const TypeDecl* _element = nullptr; // the type of elements in the buffer
+    TextureFlags _flags;
+};
+
+struct Texture2DTypeDecl : public TextureTypeDecl
+{
+protected:
+    friend struct AST;
+    Texture2DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags);
+};
+
+struct Texture3DTypeDecl : public TextureTypeDecl
+{
+protected:
+    friend struct AST;
+    Texture3DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags);
+};
+
 struct ArrayTypeDecl : public TypeDecl
 {
 protected:

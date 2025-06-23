@@ -21,11 +21,7 @@ struct NumericVarConcept;
 struct AnyTypeVarConcept;
 
 #define VEC_TYPES(N) const TypeDecl* N##2Type = nullptr; const TypeDecl* N##3Type = nullptr; const TypeDecl* N##4Type = nullptr;
-#define MATRIX_TYPES(N) \
-    const TypeDecl* N##1x1Type = nullptr; const TypeDecl* N##1x2Type = nullptr; const TypeDecl* N##1x3Type = nullptr; const TypeDecl* N##1x4Type = nullptr;\
-    const TypeDecl* N##2x1Type = nullptr; const TypeDecl* N##2x2Type = nullptr; const TypeDecl* N##2x3Type = nullptr; const TypeDecl* N##2x4Type = nullptr;\
-    const TypeDecl* N##3x1Type = nullptr; const TypeDecl* N##3x2Type = nullptr; const TypeDecl* N##3x3Type = nullptr; const TypeDecl* N##3x4Type = nullptr;\
-    const TypeDecl* N##4x1Type = nullptr; const TypeDecl* N##4x2Type = nullptr; const TypeDecl* N##4x3Type = nullptr; const TypeDecl* N##4x4Type = nullptr;
+#define MATRIX_TYPES(N) const TypeDecl* N##2x2Type = nullptr; const TypeDecl* N##3x3Type = nullptr; const TypeDecl* N##4x4Type = nullptr; 
 
 struct AST
 {
@@ -84,7 +80,8 @@ public:
 
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
     StructuredBufferTypeDecl* StructuredBuffer(const TypeDecl* element, BufferFlags flags);
-    // TypeDecl* TextureType(const TypeDecl* element);
+    Texture2DTypeDecl* Texture2D(const TypeDecl* element, TextureFlags flags);
+    Texture3DTypeDecl* Texture3D(const TypeDecl* element, TextureFlags flags);
 
     template <typename ATTR, typename... Args>
     inline ATTR* DeclareAttr(Args&&... args) {
@@ -137,6 +134,8 @@ private:
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
     std::unordered_map<const TypeDecl*, BufferTypeDecl*> _buffers;
+    std::unordered_map<const TypeDecl*, Texture2DTypeDecl*> _texture2ds;
+    std::unordered_map<const TypeDecl*, Texture3DTypeDecl*> _texture3ds;
     std::vector<TypeDecl*> _types;
     std::vector<GlobalVarDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;

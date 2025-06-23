@@ -367,6 +367,30 @@ StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferF
     return new_type;
 }
 
+Texture2DTypeDecl* AST::Texture2D(const TypeDecl* element, TextureFlags flags)
+{
+    auto&& iter = _texture2ds.find(element);
+    if (iter != _texture2ds.end())
+        return dynamic_cast<Texture2DTypeDecl*>(iter->second);
+
+    auto new_type = new Texture2DTypeDecl(*this, element, flags);
+    _types.emplace_back(new_type);
+    _texture2ds[element] = new_type;
+    return new_type;
+}
+
+Texture3DTypeDecl* AST::Texture3D(const TypeDecl* element, TextureFlags flags)
+{
+    auto&& iter = _texture3ds.find(element);
+    if (iter != _texture3ds.end())
+        return dynamic_cast<Texture3DTypeDecl*>(iter->second);
+
+    auto new_type = new Texture3DTypeDecl(*this, element, flags);
+    _types.emplace_back(new_type);
+    _texture3ds[element] = new_type;
+    return new_type;
+}
+
 const TypeDecl* AST::GetType(const Name& name) const
 {
     ReservedWordsCheck(name);
@@ -382,121 +406,6 @@ std::vector<FieldDecl*> DeclareFields(AST* ast, const TypeDecl* type, Args&&... 
     std::vector<FieldDecl*> fields;
     (fields.emplace_back(ast->DeclareField(std::forward<Args>(args), type)), ...);
     return fields;
-}
-
-#define USTR(x) L ## #x
-#define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclarePrimitiveType(USTR(name), sizeof(type), alignof(type)))
-
-#define INIT_VEC_TYPES(symbol, type, name) \
-    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
-    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y", L"z"))), \
-    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z", L"w")))
-
-#define INIT_MATRIX_TYPE(symbol, type, name) \
-    symbol##2x2Type(DeclarePrimitiveType(USTR(name##2x2), sizeof(matrix<type, 2, 2>), alignof(matrix<type, 2, 2>))), \
-    symbol##3x3Type(DeclarePrimitiveType(USTR(name##3x3), sizeof(matrix<type, 3, 3>), alignof(matrix<type, 3, 3>))), \
-    symbol##4x4Type(DeclarePrimitiveType(USTR(name##4x4), sizeof(matrix<type, 4, 4>), alignof(matrix<type, 4, 4>)))
-
-AST::AST() : 
-    VoidType(DeclarePrimitiveType(L"void", 0, 0)),
-    
-    INIT_BUILTIN_TYPE(Bool, GPUBool, bool),
-    INIT_VEC_TYPES(Bool, GPUBool, bool),
-    // INIT_MATRIX_TYPE(Bool, GPUBool, bool),
-
-    INIT_BUILTIN_TYPE(Half, float, half),
-
-    INIT_BUILTIN_TYPE(Float, float, float),
-    INIT_VEC_TYPES(Float, float, float),
-    INIT_MATRIX_TYPE(Float, float, float),
-
-    INIT_BUILTIN_TYPE(Int, int32_t, int),
-    INIT_VEC_TYPES(Int, int32_t, int),
-    // INIT_MATRIX_TYPE(Int, int32_t, int),
-
-    INIT_BUILTIN_TYPE(UInt, uint32_t, uint),
-    INIT_VEC_TYPES(UInt, uint32_t, uint),
-    // INIT_MATRIX_TYPE(UInt, uint32_t, uint),    INIT_BUILTIN_TYPE(Double, double, double),
-    INIT_BUILTIN_TYPE(I64, int64_t, int64),
-    INIT_BUILTIN_TYPE(U64, uint64_t, uint64)
-{
-    DoubleType = FloatType; // Shaders normally does not support double, so we use FloatType for DoubleType
-
-    auto IntScalar = DeclareVarConcept(L"IntScalar", 
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == IntType || type == UIntType || type == I64Type || type == U64Type;
-        });
-    auto IntVector = DeclareVarConcept(L"IntVector", 
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == Int2Type || type == Int3Type || type == Int4Type ||
-                   type == UInt2Type || type == UInt3Type || type == UInt4Type;
-        });
-        
-    auto FloatScalar = DeclareVarConcept(L"FloatScalar",
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == FloatType || type == HalfType;
-        });
-    auto FloatVector = DeclareVarConcept(L"FloatVector",
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == Float2Type || type == Float3Type || type == Float4Type;
-        });
-
-    auto ResourceFamily = DeclareVarConcept(L"ResourceFamily", 
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr;
-        });
-    auto ValueFamily = DeclareVarConcept(L"ValueFamily", 
-        [this, ResourceFamily](EVariableQualifier qualifier, const TypeDecl* type) {
-            return !ResourceFamily->validate(qualifier, type);
-        });
-
-    auto IntFamily = DeclareVarConcept(L"IntFamily", 
-        [this, IntScalar, IntVector](EVariableQualifier qualifier, const TypeDecl* type) {
-            return IntScalar->validate(qualifier, type) || IntVector->validate(qualifier, type);
-        });
-    auto FloatFamily = DeclareVarConcept(L"FloatFamily", 
-        [this, FloatScalar, FloatVector](EVariableQualifier qualifier, const TypeDecl* type) {
-            return FloatScalar->validate(qualifier, type) || FloatVector->validate(qualifier, type);
-        });
-    auto BoolFamily = DeclareVarConcept(L"BoolFamily", 
-        [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == BoolType || type == Bool2Type || type == Bool3Type || type == Bool4Type;
-        });
-    auto ArthmeticFamily = DeclareVarConcept(L"ArithmeticFamily", 
-        [this, IntFamily, FloatFamily](EVariableQualifier qualifier, const TypeDecl* type) {
-            return IntFamily->validate(qualifier, type) || FloatFamily->validate(qualifier, type);
-        });
-
-    auto BufferFamily = DeclareVarConcept(L"BufferFamily", 
-        [this](EVariableQualifier qualifier, const TypeDecl* type)  {
-            return (dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr);
-        });
-
-    std::array<VarConceptDecl*, 1> ArithmeticFunctionParams = { FloatFamily };
-    _template_intrinstics["ABS"] = DeclareTemplateFunction(L"abs", [=](auto pts) { return pts[0]; }, ArithmeticFunctionParams);
-
-    std::array<VarConceptDecl*, 1> TriangleFunctionParams = { FloatFamily };
-    _template_intrinstics["SIN"] = DeclareTemplateFunction(L"sin", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["SINH"] = DeclareTemplateFunction(L"sinh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["COSH"] = DeclareTemplateFunction(L"cosh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["ATAN"] = DeclareTemplateFunction(L"atan", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["ATANH"] = DeclareTemplateFunction(L"atanh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["TAN"] = DeclareTemplateFunction(L"tan", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["TANH"] = DeclareTemplateFunction(L"tanh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
-    _template_intrinstics["LENGTH"] = DeclareTemplateFunction(L"length", FloatType, TriangleFunctionParams);
-
-    std::array<VarConceptDecl*, 2> FloatVecOperandsParams = { FloatVector, FloatVector };
-    _template_intrinstics["DOT"] = DeclareTemplateFunction(L"dot", FloatType, FloatVecOperandsParams);
-
-    std::array<VarConceptDecl*, 2> BufferReadParams = { BufferFamily, IntScalar };
-    _template_intrinstics["BUFFER_READ"] = DeclareTemplateFunction(L"buffer_read", 
-        [=](auto pts) { 
-            return &dynamic_cast<const StructuredBufferTypeDecl*>(pts[0])->element(); 
-        }, BufferReadParams);
-
-    std::array<VarConceptDecl*, 3> BufferWriteParams = { BufferFamily, IntScalar, ValueFamily };
-    _template_intrinstics["BUFFER_WRITE"] = DeclareTemplateFunction(L"buffer_write", VoidType, BufferWriteParams);
 }
 
 // Template function/method declarations
@@ -549,6 +458,203 @@ SpecializedMethodDecl* AST::SpecializeTemplateMethod(const TemplateCallableDecl*
     auto specialized = (SpecializedMethodDecl*)template_decl->specialize_for(arg_types, arg_qualifiers);
     _decls.emplace_back(specialized);
     return specialized;
+}
+
+#define USTR(x) L ## #x
+#define INIT_BUILTIN_TYPE(symbol, type, name) symbol##Type(DeclarePrimitiveType(USTR(name), sizeof(type), alignof(type)))
+
+#define INIT_VEC_TYPES(symbol, type, name) \
+    symbol##2Type(DeclarePrimitiveType(USTR(name##2), sizeof(vec<type, 2>), alignof(vec<type, 2>), DeclareFields(this, symbol##Type, L"x", L"y"))), \
+    symbol##3Type(DeclarePrimitiveType(USTR(name##3), sizeof(vec<type, 3>), alignof(vec<type, 3>), DeclareFields(this, symbol##Type, L"x", L"y", L"z"))), \
+    symbol##4Type(DeclarePrimitiveType(USTR(name##4), sizeof(vec<type, 4>), alignof(vec<type, 4>), DeclareFields(this, symbol##Type, L"x", L"y", L"z", L"w")))
+
+#define INIT_MATRIX_TYPE(symbol, type, name) \
+    symbol##2x2Type(DeclarePrimitiveType(USTR(name##2x2), sizeof(matrix<type, 2, 2>), alignof(matrix<type, 2, 2>))), \
+    symbol##3x3Type(DeclarePrimitiveType(USTR(name##3x3), sizeof(matrix<type, 3, 3>), alignof(matrix<type, 3, 3>))), \
+    symbol##4x4Type(DeclarePrimitiveType(USTR(name##4x4), sizeof(matrix<type, 4, 4>), alignof(matrix<type, 4, 4>)))
+
+AST::AST() : 
+    VoidType(DeclarePrimitiveType(L"void", 0, 0)),
+    
+    INIT_BUILTIN_TYPE(Bool, GPUBool, bool),
+    INIT_VEC_TYPES(Bool, GPUBool, bool),
+    // INIT_MATRIX_TYPE(Bool, GPUBool, bool),
+
+    INIT_BUILTIN_TYPE(Half, float, half),
+
+    INIT_BUILTIN_TYPE(Float, float, float),
+    INIT_VEC_TYPES(Float, float, float),
+    INIT_MATRIX_TYPE(Float, float, float),
+
+    INIT_BUILTIN_TYPE(Int, int32_t, int),
+    INIT_VEC_TYPES(Int, int32_t, int),
+    // INIT_MATRIX_TYPE(Int, int32_t, int),
+
+    INIT_BUILTIN_TYPE(UInt, uint32_t, uint),
+    INIT_VEC_TYPES(UInt, uint32_t, uint),
+    // INIT_MATRIX_TYPE(UInt, uint32_t, uint),    INIT_BUILTIN_TYPE(Double, double, double),
+    INIT_BUILTIN_TYPE(I64, int64_t, int64),
+    INIT_BUILTIN_TYPE(U64, uint64_t, uint64)
+{
+    DoubleType = FloatType; // Shaders normally does not support double, so we use FloatType for DoubleType
+
+    auto Vector2D = DeclareVarConcept(L"Vector2D", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float2Type || type == Int2Type || type == UInt2Type || type == Bool2Type;
+        });
+    auto Vector3D = DeclareVarConcept(L"Vector3D",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float3Type || type == Int3Type || type == UInt3Type || type == Bool3Type;
+        });
+    auto Vector4D = DeclareVarConcept(L"Vector4D",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float4Type || type == Int4Type || type == UInt4Type || type == Bool4Type;
+        });
+
+    auto IntScalar = DeclareVarConcept(L"IntScalar", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == IntType || type == UIntType || type == I64Type || type == U64Type;
+        });
+    auto IntVector = DeclareVarConcept(L"IntVector", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Int2Type || type == Int3Type || type == Int4Type ||
+                   type == UInt2Type || type == UInt3Type || type == UInt4Type;
+        });
+        
+    auto FloatScalar = DeclareVarConcept(L"FloatScalar",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == FloatType || type == HalfType;
+        });
+    auto FloatVector = DeclareVarConcept(L"FloatVector",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float2Type || type == Float3Type || type == Float4Type;
+        });
+    auto FloatVector2D = DeclareVarConcept(L"FloatVector2D",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float2Type;
+        });
+    auto FloatVector3D = DeclareVarConcept(L"FloatVector3D",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float3Type;
+        });
+    auto FloatVector4D = DeclareVarConcept(L"FloatVector4D",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float4Type;
+        });
+
+    auto ResourceFamily = DeclareVarConcept(L"ResourceFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr;
+        });
+    auto ValueFamily = DeclareVarConcept(L"ValueFamily", 
+        [this, ResourceFamily](EVariableQualifier qualifier, const TypeDecl* type) {
+            return !ResourceFamily->validate(qualifier, type);
+        });
+
+    auto IntFamily = DeclareVarConcept(L"IntFamily", 
+        [this, IntScalar, IntVector](EVariableQualifier qualifier, const TypeDecl* type) {
+            return IntScalar->validate(qualifier, type) || IntVector->validate(qualifier, type);
+        });
+    auto FloatFamily = DeclareVarConcept(L"FloatFamily", 
+        [this, FloatScalar, FloatVector](EVariableQualifier qualifier, const TypeDecl* type) {
+            return FloatScalar->validate(qualifier, type) || FloatVector->validate(qualifier, type);
+        });
+    auto BoolFamily = DeclareVarConcept(L"BoolFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == BoolType || type == Bool2Type || type == Bool3Type || type == Bool4Type;
+        });
+    auto ArthmeticFamily = DeclareVarConcept(L"ArithmeticFamily", 
+        [this, IntFamily, FloatFamily](EVariableQualifier qualifier, const TypeDecl* type) {
+            return IntFamily->validate(qualifier, type) || FloatFamily->validate(qualifier, type);
+        });
+
+    auto MatrixFamily = DeclareVarConcept(L"MatrixFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float2x2Type || type == Float3x3Type || type == Float4x4Type;
+        });
+
+    auto BufferFamily = DeclareVarConcept(L"BufferFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type)  {
+            return (dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr);
+        });
+    auto StructuredBufferFamily = DeclareVarConcept(L"StructuredBufferFamily",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return (dynamic_cast<const skr::SSL::StructuredBufferTypeDecl*>(type) != nullptr);
+        });
+
+    auto TextureFamily = DeclareVarConcept(L"TextureFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return (dynamic_cast<const skr::SSL::TextureTypeDecl*>(type) != nullptr);
+        });
+    auto FloatTexture2DFamily = DeclareVarConcept(L"FloatTextureFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            auto t = dynamic_cast<const skr::SSL::Texture2DTypeDecl*>(type);
+            return (t != nullptr) && (&t->element() == FloatType);
+        });
+    auto FloatTexture3DFamily = DeclareVarConcept(L"FloatTexture3DFamily",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            auto t = dynamic_cast<const skr::SSL::Texture3DTypeDecl*>(type);
+            return (t != nullptr) && (&t->element() == FloatType);
+        });
+
+    auto ReturnSpec_PickFirst = [=](auto pts){ return pts[0]; };
+
+    std::array<VarConceptDecl*, 1> OneArithmetic = { ArthmeticFamily };
+    std::array<VarConceptDecl*, 2> TwoArithmetic = { ArthmeticFamily, ArthmeticFamily };
+    std::array<VarConceptDecl*, 3> ThreeArithmetic = { ArthmeticFamily, ArthmeticFamily, ArthmeticFamily };
+    _template_intrinstics["ABS"] = DeclareTemplateFunction(L"abs", ReturnSpec_PickFirst, OneArithmetic);
+    _template_intrinstics["CLAMP"] = DeclareTemplateFunction(L"clamp", ReturnSpec_PickFirst, ThreeArithmetic);
+    _template_intrinstics["LERP"] = DeclareTemplateFunction(L"lerp", ReturnSpec_PickFirst, ThreeArithmetic);
+
+    std::array<VarConceptDecl*, 1> OneFloatFamily = { FloatFamily };
+    _template_intrinstics["SIN"] = DeclareTemplateFunction(L"sin", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["SINH"] = DeclareTemplateFunction(L"sinh", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["COSH"] = DeclareTemplateFunction(L"cosh", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["ATAN"] = DeclareTemplateFunction(L"atan", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["ATANH"] = DeclareTemplateFunction(L"atanh", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["TAN"] = DeclareTemplateFunction(L"tan", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["TANH"] = DeclareTemplateFunction(L"tanh", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["LENGTH"] = DeclareTemplateFunction(L"length", FloatType, OneFloatFamily);
+    _template_intrinstics["LOG10"] = DeclareTemplateFunction(L"log10", ReturnSpec_PickFirst, OneFloatFamily);
+    _template_intrinstics["SATURATE"] = DeclareTemplateFunction(L"saturate", ReturnSpec_PickFirst, OneFloatFamily);
+
+    std::array<VarConceptDecl*, 2> TwoFloatFamily = { FloatFamily, FloatFamily };
+    _template_intrinstics["POW"] = DeclareTemplateFunction(L"pow", ReturnSpec_PickFirst, TwoFloatFamily);
+
+    std::array<VarConceptDecl*, 2> TwoFloatVec = { FloatVector, FloatVector };
+    _template_intrinstics["DOT"] = DeclareTemplateFunction(L"dot", FloatType, TwoFloatVec);
+
+    std::array<VarConceptDecl*, 1> OneMatrix = { MatrixFamily };
+    _template_intrinstics["TRANSPOSE"] = DeclareTemplateFunction(L"transpose", ReturnSpec_PickFirst, OneMatrix);
+
+    std::array<VarConceptDecl*, 2> BufferReadParams = { BufferFamily, IntScalar };
+    _template_intrinstics["BUFFER_READ"] = DeclareTemplateFunction(L"buffer_read", 
+        [=](auto pts) { 
+            return &dynamic_cast<const StructuredBufferTypeDecl*>(pts[0])->element(); 
+        }, BufferReadParams);
+
+    std::array<VarConceptDecl*, 3> BufferWriteParams = { BufferFamily, IntScalar, ValueFamily };
+    _template_intrinstics["BUFFER_WRITE"] = DeclareTemplateFunction(L"buffer_write", VoidType, BufferWriteParams);
+
+    std::array<VarConceptDecl*, 1> TextureSizeParams = { TextureFamily };
+    _template_intrinstics["TEXTURE_SIZE"] = DeclareTemplateFunction(L"texture_size", UInt3Type, TextureSizeParams);
+
+    std::array<VarConceptDecl*, 2> TextureReadParams = { TextureFamily, IntScalar };
+    _template_intrinstics["TEXTURE_READ"] = DeclareTemplateFunction(L"texture_read", 
+        [=](auto pts) { 
+            return &dynamic_cast<const TextureTypeDecl*>(pts[0])->element(); 
+        }, TextureReadParams);
+    
+    std::array<VarConceptDecl*, 3> TextureWriteParams = { TextureFamily, IntVector, Vector4D };
+    _template_intrinstics["TEXTURE_WRITE"] = DeclareTemplateFunction(L"texture_write", VoidType, TextureWriteParams);
+
+    std::array<VarConceptDecl*, 4> Texture2DSampleParams = { FloatTexture2DFamily, FloatVector2D/*uv*/, IntScalar/*filter*/, IntScalar/*address*/ };
+    _template_intrinstics["TEXTURE2D_SAMPLE"] = DeclareTemplateFunction(L"texture2d_sample", Float4Type, Texture2DSampleParams);
+
+    std::array<VarConceptDecl*, 4> Texture3DSampleParams = { FloatTexture3DFamily, FloatVector3D/*uv*/, IntScalar/*filter*/, IntScalar/*address*/ };
+    _template_intrinstics["TEXTURE3D_SAMPLE"] = DeclareTemplateFunction(L"texture3d_sample", Float4Type, Texture3DSampleParams);
+
 }
 
 AST::~AST()

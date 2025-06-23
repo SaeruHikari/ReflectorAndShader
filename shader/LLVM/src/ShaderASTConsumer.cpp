@@ -193,8 +193,7 @@ std::unique_ptr<clang::ASTConsumer> CompileFrontendAction::CreateASTConsumer(cla
 ASTConsumer::ASTConsumer(skr::SSL::AST& AST)
     : clang::ASTConsumer(), AST(AST)
 {
-    constexpr auto bin_op_count = (uint64_t)BinaryOp::NOT_EQUAL + 1u;
-    for (uint32_t i = 0; i < bin_op_count; i++) 
+    for (uint32_t i = 0; i < (uint32_t)BinaryOp::COUNT; i++) 
     {
         const auto op = (BinaryOp)i;
         _bin_ops.emplace(magic_enum::enum_name(op), op);
@@ -335,9 +334,17 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             else
                 addType(Type, AST.StructuredBuffer(getType(ET), (SSL::BufferFlags)SSL::BufferFlag::ReadWrite));
         }
-        else if (What == "image" || What == "volume")
+        else if (What == "image")
         {
-
+            const auto& Arguments = TSD->getTemplateArgs();
+            const auto* ET = Arguments.get(0).getAsType().getTypePtr();
+            addType(Type, AST.Texture2D(getType(ET), (SSL::TextureFlags)SSL::TextureFlag::ReadWrite));
+        }
+        else if (What == "volume")
+        {
+            const auto& Arguments = TSD->getTemplateArgs();
+            const auto* ET = Arguments.get(0).getAsType().getTypePtr();
+            addType(Type, AST.Texture3D(getType(ET), (SSL::TextureFlags)SSL::TextureFlag::ReadWrite));
         }
         else if (What == "bindless_array")
         {
@@ -519,7 +526,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x, llv
         {
             F = AST.DeclareMethod(
                 ownerType,
-                ToText(AsMethod->getName()),
+                ToText(AsMethod->getNameAsString()),
                 getType(x->getReturnType().getTypePtr()),
                 params,
                 traverseStmt<SSL::CompoundStmt>(x->getBody())
@@ -800,7 +807,7 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
         else if (auto AsCallOp = IsCallOp(funcDecl))
         {
             auto name = GetArgumentAt<clang::StringRef>(AsCallOp, 1);
-            if (auto Intrin = AST.FindIntrinsic(name.data()))
+            if (auto Intrin = AST.FindIntrinsic(name.str().c_str()))
             {
                 const bool IsMethod = llvm::dyn_cast<clang::CXXMemberCallExpr>(cxxCall);
                 std::vector<const TypeDecl*> arg_types;

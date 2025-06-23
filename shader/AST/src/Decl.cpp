@@ -136,6 +136,7 @@ BufferTypeDecl::BufferTypeDecl(AST& ast, const String& name, BufferFlags flags)
 ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
     : BufferTypeDecl(ast, std::format(L"{}ByteAddressBuffer", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L""), flags)
 {
+    /*
     this->add_method(ast.DeclareMethod(this, L"GetCount", ast.UIntType, {}, nullptr));
 
     std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
@@ -171,28 +172,31 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
         this->add_method(ast.DeclareMethod(this, L"InterlockedCompareStore", ast.VoidType, ps1, nullptr));
         this->add_method(ast.DeclareMethod(this, L"InterlockedCompareExchange", ast.UIntType, ps1, nullptr));
     }
-
-    // TODO: GENERIC LOAD/STORE
+    */
 }
 
 StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags)
     : BufferTypeDecl(ast, std::format(L"{}StructuredBuffer<{}>", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L"", element->name()), flags), _element(element)
 {
-    /*
-    this->add_method(ast.DeclareMethod(this, L"BUFFER_SIZE", element, {}, nullptr));
-    
-    std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
-    this->add_method(ast.DeclareMethod(this, L"BUFFER_READ", element, address, nullptr));
 
-    if (flags & (uint32_t)BufferFlag::ReadWrite)
-    {
-        std::vector<ParamVarDecl*> address_val = { 
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address"),
-            ast.DeclareParam(EVariableQualifier::None, element, L"value")
-        };
-        this->add_method(ast.DeclareMethod(this, L"BUFFER_WRITE", ast.VoidType, address_val, nullptr));
-    }
-    */
+}
+
+TextureTypeDecl::TextureTypeDecl(AST& ast, const String& name, const TypeDecl* element, TextureFlags flags)
+    : ResourceTypeDecl(ast, name), _element(element), _flags(flags)
+{
+
+}
+
+Texture2DTypeDecl::Texture2DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags)
+    : TextureTypeDecl(ast, std::format(L"{}Texture2D<{}>", (flags & (uint32_t)TextureFlag::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
+{
+
+}
+
+Texture3DTypeDecl::Texture3DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags)
+    : TextureTypeDecl(ast, std::format(L"{}Texture3D<{}>", (flags & (uint32_t)TextureFlag::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
+{
+
 }
 
 ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)

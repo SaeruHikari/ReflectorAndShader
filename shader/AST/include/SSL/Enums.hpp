@@ -24,7 +24,6 @@ enum struct UnaryOp : uint32_t {
 
 enum struct BinaryOp : uint32_t {
 
-    // arithmetic
     ADD,
     SUB,
     MUL,
@@ -38,7 +37,6 @@ enum struct BinaryOp : uint32_t {
     AND,
     OR,
 
-    // relational
     LESS,
     GREATER,
     LESS_EQUAL,
@@ -46,13 +44,14 @@ enum struct BinaryOp : uint32_t {
     EQUAL,
     NOT_EQUAL,
 
-    //
-    ASSIGN = 0x1000,
-    ADD_ASSIGN = 0x1001,
-    SUB_ASSIGN = 0x1002,
-    MUL_ASSIGN = 0x1003,
-    DIV_ASSIGN = 0x1004,
-    MOD_ASSIGN = 0x1005,
+    ASSIGN,
+    ADD_ASSIGN,
+    SUB_ASSIGN,
+    MUL_ASSIGN,
+    DIV_ASSIGN,
+    MOD_ASSIGN,
+
+    COUNT
 };
 
 enum struct ShaderStage : uint32_t
@@ -68,6 +67,13 @@ enum struct BufferFlag : uint32_t
     ReadWrite = 0x2,
 };
 using BufferFlags = uint32_t;
+
+enum struct TextureFlag : uint32_t
+{
+    Read = 0x1,
+    ReadWrite = 0x2
+};
+using TextureFlags = uint32_t;
 
 // https://www.w3.org/TR/WGSL/#alignment-and-size
 struct alignas(2) GPUHalf
