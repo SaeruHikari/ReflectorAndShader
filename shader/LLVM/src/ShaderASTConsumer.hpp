@@ -54,11 +54,14 @@ protected:
 
 protected:
     void DumpWithLocation(const clang::Stmt *stmt) const;
+    void DumpWithLocation(const clang::Decl *decl) const;
     void ReportFatalError(const std::string& message) const;
     template <typename... Args>
     void ReportFatalError(std::format_string<Args...> _fmt, Args&&... args) const;
     template <typename... Args>
     void ReportFatalError(const clang::Stmt* expr, std::format_string<Args...> _fmt, Args&&... args) const;
+    template <typename... Args>
+    void ReportFatalError(const clang::Decl* decl, std::format_string<Args...> _fmt, Args&&... args) const;
     
     std::map<std::string, skr::SSL::BinaryOp> _bin_ops;
 };

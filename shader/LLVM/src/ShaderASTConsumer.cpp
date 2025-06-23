@@ -44,10 +44,23 @@ inline void ASTConsumer::ReportFatalError(const clang::Stmt* expr, std::format_s
     ReportFatalError(_fmt, std::forward<Args>(args)...);
 }
 
+template <typename... Args>
+inline void ASTConsumer::ReportFatalError(const clang::Decl* decl, std::format_string<Args...> _fmt, Args&&... args) const
+{
+    DumpWithLocation(decl);
+    ReportFatalError(_fmt, std::forward<Args>(args)...);
+}
+
 void ASTConsumer::DumpWithLocation(const clang::Stmt *stmt) const
 {
     stmt->getBeginLoc().dump(pASTContext->getSourceManager());
     stmt->dump();
+}
+
+void ASTConsumer::DumpWithLocation(const clang::Decl* decl) const
+{
+    decl->getBeginLoc().dump(pASTContext->getSourceManager());
+    decl->dump();
 }
 
 inline static String ToText(clang::StringRef str)
@@ -279,8 +292,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             }
             else
             {
-                ReportFatalError("Unsupported vec type: " + std::string(ET->getTypeClassName()) + " for vec size: " + std::to_string(N));
-                recordDecl->dump();
+                ReportFatalError(recordDecl, "Unsupported vec type: {} for vec size: {}", std::string(ET->getTypeClassName()), std::to_string(N));
             }
         }
         else if (What == "array")
@@ -329,8 +341,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         }
         else
         {
-            ReportFatalError("Unsupported builtin type: " + std::string(What) + " for type: " + std::string(recordDecl->getName()));
-            recordDecl->dump();
+            ReportFatalError("Unsupported builtin type: {} for type: {}", std::string(What), std::string(recordDecl->getName()));
         }
         return true;
     } 
@@ -381,8 +392,7 @@ bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
         }
         else
         {
-            ReportFatalError("Unsupported stage function: " + std::string(x->getNameAsString()));
-            x->dump();
+            ReportFatalError(x, "Unsupported stage function: {}", std::string(x->getNameAsString()));
         }
     }
     return true;
@@ -424,12 +434,18 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x, llv
         const auto qualifier = 
             isConst ? SSL::EVariableQualifier::Const : 
             (isRef ? SSL::EVariableQualifier::Inout : SSL::EVariableQualifier::None);
-        auto p = params.emplace_back(AST.DeclareParam(
+        auto _param = params.emplace_back(AST.DeclareParam(
             qualifier,
             getType(ParamQualType.getTypePtr()),
             ToText(param->getName()))
         );
-        addVar(param, p);
+        addVar(param, _param);
+
+        if (auto BuiltinInfo = IsBuiltin(param))
+        {
+            auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
+            _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+        }
     }
 
     SSL::FunctionDecl* F = nullptr;
@@ -458,8 +474,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x, llv
                 }
                 else
                 {
-                    x->dump();
-                    ReportFatalError("Derived class is currently unsupported!");
+                    ReportFatalError(x, "Derived class is currently unsupported!");
                 }
             }
             
@@ -939,8 +954,7 @@ skr::SSL::VarDecl* ASTConsumer::getVar(const clang::VarDecl* var) const
     if (it != _vars.end())
         return it->second;
 
-    var->dump();
-    ReportFatalError("DeclRefExpr with unfound variable: [{}]", var->getNameAsString());
+    ReportFatalError(var, "DeclRefExpr with unfound variable: [{}]", var->getNameAsString());
     return nullptr;
 }
 
