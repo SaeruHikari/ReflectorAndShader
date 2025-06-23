@@ -118,6 +118,11 @@ inline static T GetArgumentAt(const clang::AnnotateAttr* attr, size_t index)
         auto arg = llvm::dyn_cast<clang::StringLiteral>((*args)->IgnoreParenCasts());
         return arg->getString();
     }
+    else if constexpr (std::is_integral_v<T>)
+    {
+        auto arg = llvm::dyn_cast<clang::IntegerLiteral>((*args)->IgnoreParenCasts());
+        return arg->getValue().getLimitedValue();
+    }
     else
     {
         static_assert(std::is_same_v<T, std::nullptr_t>, "Unsupported type for GetArgumentAt");
@@ -144,8 +149,9 @@ inline static clang::AnnotateAttr* IsKernel(const clang::Decl* decl) { return Ex
 inline static clang::AnnotateAttr* IsSwizzle(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "swizzle"); }
 inline static clang::AnnotateAttr* IsUnaOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "unaop"); }
 inline static clang::AnnotateAttr* IsBinOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "binop"); }
-inline static clang::AnnotateAttr* IsCallOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "builtin"); }
+inline static clang::AnnotateAttr* IsCallOp(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "callop"); }
 inline static clang::AnnotateAttr* IsAccess(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "access"); }
+inline static clang::AnnotateAttr* IsStage(const clang::Decl* decl) { return ExistShaderAttrWithName(decl, "stage"); }
 
 CompileFrontendAction::CompileFrontendAction(skr::SSL::AST& AST)
     : clang::ASTFrontendAction(), AST(AST)
@@ -353,12 +359,50 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
 
 bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
 {
-    if (IsKernel(x))
-        recordFunction(x);
+    if (auto StageInfo = IsStage(x))
+    {
+        auto StageName = GetArgumentAt<clang::StringRef>(StageInfo, 1);
+        auto FunctionName = GetArgumentAt<clang::StringRef>(StageInfo, 2);
+
+        if (StageName == "compute")
+        {
+            if (auto KernelInfo = IsKernel(x))
+            {
+                auto Kernel = recordFunction(x, FunctionName);
+                Kernel->add_attr(AST.DeclareAttr<StageAttr>(ShaderStage::Compute));
+
+                uint32_t KernelX = GetArgumentAt<uint32_t>(KernelInfo, 1);
+                uint32_t KernelY = GetArgumentAt<uint32_t>(KernelInfo, 2);
+                uint32_t KernelZ = GetArgumentAt<uint32_t>(KernelInfo, 3);
+                Kernel->add_attr(AST.DeclareAttr<KernelSizeAttr>(KernelX, KernelY, KernelZ));
+            }
+            else
+                ReportFatalError("Compute shader function must have kernel size attributes: " + std::string(x->getNameAsString()));
+        }
+        else
+        {
+            ReportFatalError("Unsupported stage function: " + std::string(x->getNameAsString()));
+            x->dump();
+        }
+    }
     return true;
 }
 
-SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x) 
+bool ASTConsumer::VisitVarDecl(clang::VarDecl* x)
+{
+    if (IsDump(x))
+        x->dump();
+
+    if (x->hasExternalStorage())
+    {
+        auto ResourceType = x->getType().getNonReferenceType().getCanonicalType().getTypePtr();
+        auto ShaderResource = AST.DeclareGlobalResource(getType(ResourceType), ToText(x->getName()));
+        addVar(x, ShaderResource);
+    }
+    return true;
+}
+
+SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x, llvm::StringRef override_name) 
 {
     if (IsDump(x))
         x->dump();
@@ -387,6 +431,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
         );
         addVar(param, p);
     }
+
     SSL::FunctionDecl* F = nullptr;
     auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x);
     if (AsMethod && !AsMethod->isStatic())
@@ -400,15 +445,22 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
             auto body = AST.Block({});
             for (auto ctor_init : AsCtor->inits())
             {
-                auto F = ctor_init->getMember();
-                auto I = ctor_init->getMember()->getFieldIndex();
-                auto N = ToText(F->getDeclName().getAsString());
-                body->add_statement(
-                    AST.Assign(
-                        AST.Field(AST.This(ownerType), ownerType->get_field(N)),
-                        (SSL::Expr*)traverseStmt(ctor_init->getInit())
-                    )
-                );
+                if (auto F = ctor_init->getMember())
+                {
+                    auto I = ctor_init->getMember()->getFieldIndex();
+                    auto N = ToText(F->getDeclName().getAsString());
+                    body->add_statement(
+                        AST.Assign(
+                            AST.Field(AST.This(ownerType), ownerType->get_field(N)),
+                            (SSL::Expr*)traverseStmt(ctor_init->getInit())
+                        )
+                    );
+                }
+                else
+                {
+                    x->dump();
+                    ReportFatalError("Derived class is currently unsupported!");
+                }
             }
             
             if (auto func = traverseStmt<SSL::CompoundStmt>(x->getBody()))
@@ -436,7 +488,7 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x)
     }
     else
     {
-        auto CxxFunctionName = x->getQualifiedNameAsString();
+        auto CxxFunctionName = override_name.empty() ? x->getQualifiedNameAsString() : override_name.str();
         std::replace(CxxFunctionName.begin(), CxxFunctionName.end(), ':', '_');
         F = AST.DeclareFunction(ToText(CxxFunctionName),
             getType(x->getReturnType().getTypePtr()),
@@ -709,30 +761,35 @@ Stmt* ASTConsumer::traverseStmt(const clang::Stmt *x)
             auto name = GetArgumentAt<clang::StringRef>(AsCallOp, 1);
             if (auto Intrin = AST.FindIntrinsic(name.data()))
             {
+                const bool IsMethod = llvm::dyn_cast<clang::CXXMemberCallExpr>(cxxCall);
                 std::vector<const TypeDecl*> arg_types;
                 std::vector<EVariableQualifier> arg_qualifiers;
-                arg_types.reserve(cxxCall->getNumArgs());
-                arg_qualifiers.reserve(cxxCall->getNumArgs());
+                std::vector<SSL::Expr*> args;
+                args.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                arg_types.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                arg_qualifiers.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                if (IsMethod)
+                {
+                    auto _clangMember = llvm::dyn_cast<clang::MemberExpr>(llvm::dyn_cast<clang::CXXMemberCallExpr>(x)->getCallee());
+                    auto _caller = traverseStmt<SSL::DeclRefExpr>(_clangMember->getBase());
+                    arg_types.emplace_back(_caller->type());
+                    arg_qualifiers.emplace_back(EVariableQualifier::Inout);
+                    args.emplace_back(_caller);
+                }
                 for (size_t i = 0; i < cxxCall->getNumArgs(); ++i)
                 {
                     arg_types.emplace_back(getType(cxxCall->getArg(i)->getType().getTypePtr()));
                     arg_qualifiers.emplace_back(EVariableQualifier::None);
+                    args.emplace_back(traverseStmt<SSL::Expr>(cxxCall->getArg(i)));
                 }
                 // TODO: CACHE THIS
                 if (auto Spec = AST.SpecializeTemplateFunction(Intrin, arg_types, arg_qualifiers))
-                {
-                    std::vector<SSL::Expr*> args;
-                    args.reserve(cxxCall->getNumArgs());
-                    for (auto arg : cxxCall->arguments())
-                    {
-                        args.emplace_back(traverseStmt<SSL::Expr>(arg));
-                    }
                     return AST.CallFunction(Spec->ref(), args);
-                }
                 else
                     ReportFatalError(x, "Failed to specialize template function: {}", name.str());
             }
-            return AST.Constant(IntValue(1919810));
+            else
+                ReportFatalError(x, "Unsupported call operator: {}", name.str());
         }
         else if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
         {

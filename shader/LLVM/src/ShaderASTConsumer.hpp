@@ -28,9 +28,10 @@ public:
     bool VisitEnumDecl(clang::EnumDecl* x);
     bool VisitRecordDecl(clang::RecordDecl* x);
     bool VisitFunctionDecl(clang::FunctionDecl* x);
+    bool VisitVarDecl(clang::VarDecl* x);
 
 protected:
-    SSL::FunctionDecl* recordFunction(const clang::FunctionDecl* x);
+    SSL::FunctionDecl* recordFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
 
     template <typename T>
     T* traverseStmt(const clang::Stmt* x);

@@ -178,10 +178,11 @@ ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
 StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags)
     : BufferTypeDecl(ast, std::format(L"{}StructuredBuffer<{}>", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L"", element->name()), flags), _element(element)
 {
-    this->add_method(ast.DeclareMethod(this, L"GetCount", element, {}, nullptr));
+    /*
+    this->add_method(ast.DeclareMethod(this, L"BUFFER_SIZE", element, {}, nullptr));
     
     std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
-    this->add_method(ast.DeclareMethod(this, L"Load", element, address, nullptr));
+    this->add_method(ast.DeclareMethod(this, L"BUFFER_READ", element, address, nullptr));
 
     if (flags & (uint32_t)BufferFlag::ReadWrite)
     {
@@ -189,8 +190,9 @@ StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* ele
             ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address"),
             ast.DeclareParam(EVariableQualifier::None, element, L"value")
         };
-        this->add_method(ast.DeclareMethod(this, L"Store", ast.VoidType, address_val, nullptr));
+        this->add_method(ast.DeclareMethod(this, L"BUFFER_WRITE", ast.VoidType, address_val, nullptr));
     }
+    */
 }
 
 ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)

@@ -549,17 +549,16 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
             for (size_t i = 0; i < funcDecl->parameters().size(); i++)
             {
                 auto param = funcDecl->parameters()[i];
-                for (auto attr : param->attrs())
+                bool isResource = dynamic_cast<const ResourceTypeDecl*>(&param->type());
+                if (isResource)
                 {
-                    if (auto resourceBind = dynamic_cast<const ResourceBindAttr*>(attr))
-                    {
-                        String content = param->type().name() + L" " + param->name();
-                        // content += L" : register(" + std::to_wstring(bind_attr->binding()) + L")";
-                        sb.append(content);
-                        sb.endline(L';');
+                    String content = param->type().name() + L" " + param->name();
+                    // auto resourceBind = dynamic_cast<const ResourceBindAttr*>(attr);
+                    // content += L" : register(" + std::to_wstring(bind_attr->binding()) + L")";
+                    sb.append(content);
+                    sb.endline(L';');
 
-                        params.erase(std::find(params.begin(), params.end(), param));
-                    }
+                    params.erase(std::find(params.begin(), params.end(), param));
                 }
             }
             // generate stage entry attributes

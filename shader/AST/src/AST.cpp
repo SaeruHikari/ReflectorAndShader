@@ -1,5 +1,6 @@
 #include "SSL/AST.hpp"
 #include <array>
+#include <unordered_set>
 
 namespace skr::SSL 
 {
@@ -36,7 +37,6 @@ struct TemplateCallable : public TemplateCallableDecl
     }
     ReturnTypeSpecializer ret_spec;
 };
-
 
 BinaryExpr* AST::Binary(BinaryOp op, Expr* left, Expr* right)
 {
@@ -222,8 +222,9 @@ DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr
 
 DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer) 
 {  
+    ReservedWordsCheck(name);
     assert(qualifier != EVariableQualifier::Inout && "Inout qualifier is not allowed for variable declarations");
-    
+
     auto decl = new VarDecl(*this, qualifier, type, name, initializer);
     _decls.emplace_back(decl);
 
@@ -242,6 +243,7 @@ WhileStmt* AST::While(Expr* cond, CompoundStmt* body)
 
 TypeDecl* AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
 {
+    ReservedWordsCheck(name);
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
@@ -274,6 +276,7 @@ const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t cou
 GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
 {
     // TODO: CHECK THIS IS NOT RESOURCE TYPE
+    ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::Const, type, name, initializer);
     _decls.emplace_back(decl);
     _globals.emplace_back(decl);
@@ -283,6 +286,7 @@ GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name
 GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
 {
     // TODO: CHECK THIS IS RESOURCE TYPE
+    ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::None, type, name, nullptr);
     _decls.emplace_back(decl);
     _globals.emplace_back(decl);
@@ -291,6 +295,7 @@ GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name
 
 FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 {
+    ReservedWordsCheck(name);
     auto decl = new FieldDecl(*this, name, type);
     _decls.emplace_back(decl);
     return decl;
@@ -298,6 +303,7 @@ FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 
 MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
+    ReservedWordsCheck(name);
     auto decl = new MethodDecl(*this, owner, name, return_type, params, body);
     _decls.emplace_back(decl);
     _methods.emplace_back(decl);
@@ -306,6 +312,7 @@ MethodDecl* AST::DeclareMethod(TypeDecl* owner, const Name& name, const TypeDecl
 
 ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
+    ReservedWordsCheck(name);
     auto decl = new ConstructorDecl(*this, owner, name, params, body);
     _decls.emplace_back(decl);
     _ctors.emplace_back(decl);
@@ -314,6 +321,7 @@ ConstructorDecl* AST::DeclareConstructor(TypeDecl* owner, const Name& name, std:
 
 FunctionDecl* AST::DeclareFunction(const Name& name, const TypeDecl* return_type, std::span<const ParamVarDecl* const> params, CompoundStmt* body)
 {
+    ReservedWordsCheck(name);
     auto decl = new FunctionDecl(*this, name, return_type, params, body);
     _decls.emplace_back(decl);
     _funcs.emplace_back(decl);
@@ -322,6 +330,7 @@ FunctionDecl* AST::DeclareFunction(const Name& name, const TypeDecl* return_type
 
 ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name)
 {
+    ReservedWordsCheck(name);
     auto decl = new ParamVarDecl(*this, qualifier, type, name);
     _decls.emplace_back(decl);
     return decl;
@@ -360,6 +369,7 @@ StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferF
 
 const TypeDecl* AST::GetType(const Name& name) const
 {
+    ReservedWordsCheck(name);
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return *found;
@@ -410,17 +420,66 @@ AST::AST() :
     INIT_BUILTIN_TYPE(I64, int64_t, int64),
     INIT_BUILTIN_TYPE(U64, uint64_t, uint64)
 {
-    auto FloatFamily = DeclareVarConcept(L"FloatFamily", 
+    auto IntScalar = DeclareVarConcept(L"IntScalar", 
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == FloatType || type == Float2Type || type == Float3Type || type == Float4Type;
+            return type == IntType || type == UIntType || type == I64Type || type == U64Type;
+        });
+    auto IntVector = DeclareVarConcept(L"IntVector", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Int2Type || type == Int3Type || type == Int4Type ||
+                   type == UInt2Type || type == UInt3Type || type == UInt4Type;
+        });
+        
+    auto FloatScalar = DeclareVarConcept(L"FloatScalar",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == FloatType || type == HalfType;
+        });
+    auto FloatVector = DeclareVarConcept(L"FloatVector",
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return type == Float2Type || type == Float3Type || type == Float4Type;
+        });
+
+    auto ResourceFamily = DeclareVarConcept(L"ResourceFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            return dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr;
+        });
+    auto ValueFamily = DeclareVarConcept(L"ValueFamily", 
+        [this, ResourceFamily](EVariableQualifier qualifier, const TypeDecl* type) {
+            return !ResourceFamily->validate(qualifier, type);
+        });
+
+    auto IntFamily = DeclareVarConcept(L"IntFamily", 
+        [this, IntScalar, IntVector](EVariableQualifier qualifier, const TypeDecl* type) {
+            return IntScalar->validate(qualifier, type) || IntVector->validate(qualifier, type);
+        });
+    auto FloatFamily = DeclareVarConcept(L"FloatFamily", 
+        [this, FloatScalar, FloatVector](EVariableQualifier qualifier, const TypeDecl* type) {
+            return FloatScalar->validate(qualifier, type) || FloatVector->validate(qualifier, type);
         });
     auto BoolFamily = DeclareVarConcept(L"BoolFamily", 
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
             return type == BoolType || type == Bool2Type || type == Bool3Type || type == Bool4Type;
         });
 
+    auto BufferFamily = DeclareVarConcept(L"BufferFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type)  {
+            return (dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr);
+        });
+
     std::array<VarConceptDecl*, 1> TriangleFunctionParams = { FloatFamily };
     _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+
+    std::array<VarConceptDecl*, 2> FloatVecOperandsParams = { FloatVector, FloatVector };
+    _template_intrinstics["DOT"] = DeclareTemplateFunction(L"dot", FloatType, FloatVecOperandsParams);
+
+    std::array<VarConceptDecl*, 2> BufferReadParams = { BufferFamily, IntScalar };
+    _template_intrinstics["BUFFER_READ"] = DeclareTemplateFunction(L"buffer_read", 
+        [=](auto pts) { 
+            return &dynamic_cast<const StructuredBufferTypeDecl*>(pts[0])->element(); 
+        }, BufferReadParams);
+
+    std::array<VarConceptDecl*, 3> BufferWriteParams = { BufferFamily, IntScalar, ValueFamily };
+    _template_intrinstics["BUFFER_WRITE"] = DeclareTemplateFunction(L"buffer_write", VoidType, BufferWriteParams);
 }
 
 // Template function/method declarations
@@ -494,6 +553,31 @@ AST::~AST()
         delete attr;
     }
     _attrs.clear();
+}
+
+template <typename... Args>
+[[noreturn]] void AST::ReportFatalError(std::wformat_string<Args...> fmt, Args&&... args) const
+{
+    ReportFatalError(std::format(fmt, std::forward<Args>(args)...));
+}
+
+[[noreturn]] void AST::ReportFatalError(const String& message) const
+{
+    std::wcerr << dump() << std::endl;
+    std::wcerr << message << std::endl;
+    abort();
+}
+
+void AST::ReservedWordsCheck(const Name& name) const
+{
+    static const std::unordered_set<Name> reserved_names = {
+        L"float", L"int", L"uint", L"bool", L"void",
+        L"half", L"double", L"int64_t", L"uint64_t"
+    };
+    if (reserved_names.contains(name))
+    {
+        ReportFatalError(L"{} is a reserved word, which should not be used!", name);
+    }
 }
 
 } // namespace skr::SSL

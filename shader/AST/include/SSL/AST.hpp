@@ -1,11 +1,12 @@
 #pragma once
-#include <map>
-#include <unordered_map>
 #include "Attr.hpp"
 #include "Expr.hpp"
 #include "Decl.hpp"
 #include "Constant.hpp"
 
+#include <map>
+#include <unordered_map>
+#include <format>
 namespace skr::SSL {
 
 // Forward declarations for template system
@@ -81,8 +82,6 @@ public:
     SpecializedMethodDecl* SpecializeTemplateMethod(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
 
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
-    // TODO: for scalar, float2/4 types
-    // Buffer* Buffer(const TypeDecl* element, BufferFlags flags);
     StructuredBufferTypeDecl* StructuredBuffer(const TypeDecl* element, BufferFlags flags);
     // TypeDecl* TextureType(const TypeDecl* element);
 
@@ -129,6 +128,11 @@ public:
     String dump() const;
 
 private:
+    template <typename... Args>
+    [[noreturn]] void ReportFatalError(std::wformat_string<Args...> fmt, Args&&... args) const;
+    [[noreturn]] void ReportFatalError(const String& message) const;
+    void ReservedWordsCheck(const Name& name) const;
+
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
     std::unordered_map<const TypeDecl*, BufferTypeDecl*> _buffers;
