@@ -420,6 +420,8 @@ AST::AST() :
     INIT_BUILTIN_TYPE(I64, int64_t, int64),
     INIT_BUILTIN_TYPE(U64, uint64_t, uint64)
 {
+    DoubleType = FloatType; // Shaders normally does not support double, so we use FloatType for DoubleType
+
     auto IntScalar = DeclareVarConcept(L"IntScalar", 
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
             return type == IntType || type == UIntType || type == I64Type || type == U64Type;
@@ -460,14 +462,29 @@ AST::AST() :
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
             return type == BoolType || type == Bool2Type || type == Bool3Type || type == Bool4Type;
         });
+    auto ArthmeticFamily = DeclareVarConcept(L"ArithmeticFamily", 
+        [this, IntFamily, FloatFamily](EVariableQualifier qualifier, const TypeDecl* type) {
+            return IntFamily->validate(qualifier, type) || FloatFamily->validate(qualifier, type);
+        });
 
     auto BufferFamily = DeclareVarConcept(L"BufferFamily", 
         [this](EVariableQualifier qualifier, const TypeDecl* type)  {
             return (dynamic_cast<const skr::SSL::BufferTypeDecl*>(type) != nullptr);
         });
 
+    std::array<VarConceptDecl*, 1> ArithmeticFunctionParams = { FloatFamily };
+    _template_intrinstics["ABS"] = DeclareTemplateFunction(L"abs", [=](auto pts) { return pts[0]; }, ArithmeticFunctionParams);
+
     std::array<VarConceptDecl*, 1> TriangleFunctionParams = { FloatFamily };
+    _template_intrinstics["SIN"] = DeclareTemplateFunction(L"sin", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["SINH"] = DeclareTemplateFunction(L"sinh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
     _template_intrinstics["COS"] = DeclareTemplateFunction(L"cos", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["COSH"] = DeclareTemplateFunction(L"cosh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["ATAN"] = DeclareTemplateFunction(L"atan", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["ATANH"] = DeclareTemplateFunction(L"atanh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["TAN"] = DeclareTemplateFunction(L"tan", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["TANH"] = DeclareTemplateFunction(L"tanh", [=](auto pts){ return pts[0]; }, TriangleFunctionParams);
+    _template_intrinstics["LENGTH"] = DeclareTemplateFunction(L"length", FloatType, TriangleFunctionParams);
 
     std::array<VarConceptDecl*, 2> FloatVecOperandsParams = { FloatVector, FloatVector };
     _template_intrinstics["DOT"] = DeclareTemplateFunction(L"dot", FloatType, FloatVecOperandsParams);

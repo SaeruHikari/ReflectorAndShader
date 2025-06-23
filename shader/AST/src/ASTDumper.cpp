@@ -223,6 +223,7 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
     else if (auto staticCast = dynamic_cast<const StaticCastExpr*>(stmt))
     {
         sb.append_expr(L"StaticCastExpr ");
+        sb.append_type(staticCast->type()->name());
         sb.endline();
     }
     else if (auto switchStmt = dynamic_cast<const SwitchStmt*>(stmt))

@@ -28,6 +28,7 @@ public:
     bool VisitEnumDecl(clang::EnumDecl* x);
     bool VisitRecordDecl(clang::RecordDecl* x);
     bool VisitFunctionDecl(clang::FunctionDecl* x);
+    bool VisitFieldDecl(clang::FieldDecl* x);
     bool VisitVarDecl(clang::VarDecl* x);
 
 protected:

@@ -25,6 +25,18 @@ const bool LanguageRule_UseAssignForImplicitCopyOrMove(const clang::Decl* x)
     return false;
 }
 
+bool LanguageRule_BanDoubleFieldsAndVariables(const clang::Decl* decl, const clang::QualType& qt)
+{
+    if (auto AsBuiltin = qt->getAs<clang::BuiltinType>())
+    {
+        if (AsBuiltin->getKind() == clang::BuiltinType::Double)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline void ASTConsumer::ReportFatalError(const std::string& message) const
 {
     llvm::report_fatal_error(message.c_str());
@@ -347,7 +359,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
     } 
 
     if (getType(Type))
-        ReportFatalError("Duplicate type declaration: " + std::string(recordDecl->getName()));
+        ReportFatalError(recordDecl, "Duplicate type declaration: {}", std::string(recordDecl->getName()));
 
     auto NewType = AST.DeclareType(ToText(recordDecl->getName()), {});
     for (auto field : recordDecl->fields())
@@ -398,10 +410,24 @@ bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
     return true;
 }
 
+bool ASTConsumer::VisitFieldDecl(clang::FieldDecl* x)
+{
+    if (IsDump(x))
+        x->dump();
+
+    if (!LanguageRule_BanDoubleFieldsAndVariables(x, x->getType()))
+        ReportFatalError(x, "Double fields are not allowed");
+
+    return true;
+}
+
 bool ASTConsumer::VisitVarDecl(clang::VarDecl* x)
 {
     if (IsDump(x))
         x->dump();
+
+    // if (!LanguageRule_BanDoubleFieldsAndVariables(x, x->getType()))
+    //    ReportFatalError(x, "Double variables are not allowed");
 
     if (x->hasExternalStorage())
     {

@@ -470,15 +470,8 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDecl)
 {
     using namespace skr::SSL;
-    if (typeDecl->is_builtin())
-    {
-        sb.append(L"//builtin type: ");
-        sb.append(typeDecl->name());
-        sb.append(L", size: " + std::to_wstring(typeDecl->size()));
-        sb.append(L", align: " + std::to_wstring(typeDecl->alignment()));
-        sb.endline();
-    }
-    else
+    const bool DUMP_BUILTIN_TYPES = false;
+    if (!typeDecl->is_builtin())
     {
         sb.append(L"struct " + typeDecl->name());
         sb.endline(L'{');
@@ -522,6 +515,14 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::TypeDecl* typeDe
         sb.append(L"#define " + typeDecl->name() + L"(__VA_ARGS__) " + typeDecl->name() + L"::__CTOR__(__VA_ARGS__)");
         sb.endline();
     }        
+    else if (DUMP_BUILTIN_TYPES)
+    {
+        sb.append(L"//builtin type: ");
+        sb.append(typeDecl->name());
+        sb.append(L", size: " + std::to_wstring(typeDecl->size()));
+        sb.append(L", align: " + std::to_wstring(typeDecl->alignment()));
+        sb.endline();
+    }
 }
 
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* funcDecl)
@@ -602,10 +603,6 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
         visitExpr(sb, funcDecl->body());
         sb.endline();
     }
-    else
-    {
-        sb.append(L"// " + funcDecl->return_type()->name() + L" " + funcDecl->name() + L"();\n");
-    }
 }
 
 void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl)
@@ -623,10 +620,18 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::VarDecl* varDecl
     }
 }
 
+static const skr::SSL::String kHLSLHeader = LR"(
+template <typename T> void buffer_write(RWStructuredBuffer<T> buffer, uint index, T value) { buffer[index] = value; }
+template <typename T> T buffer_read(RWStructuredBuffer<T> buffer, uint index) { return buffer[index]; }
+)";
+
 String HLSLGenerator::generate_code(SourceBuilderNew& sb, const AST& ast)
 {
     using namespace skr::SSL;
 
+    sb.append(kHLSLHeader);
+    sb.endline();
+    
     for (const auto& type : ast.types())
     {
         visit(sb, type);
