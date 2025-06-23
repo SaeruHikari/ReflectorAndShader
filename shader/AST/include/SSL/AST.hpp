@@ -145,9 +145,11 @@ private:
     std::map<std::pair<const TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
     
     // Template and specialized declarations
-    std::map<std::string, TemplateCallableDecl*> _template_intrinstics;
+    std::map<std::string, TemplateCallableDecl*> _intrinstics;
 
 public:
+    void DeclareIntrinstics();
+
     const TypeDecl* VoidType = nullptr;
     
     const TypeDecl* BoolType = nullptr;

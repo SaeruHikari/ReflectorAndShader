@@ -14,9 +14,9 @@ namespace skr::shader {
 [[callop("WARP_IS_FIRST_ACTIVE_LANE")]] extern bool wave_is_first_lane();
 
 template<concepts::arithmetic T>
-[[callop("WARP_ACTIVE_ALL_EQUAL")]] extern vec<bool, vec_dim_v<T>> warp_active_all_equal();
+[[callop("WARP_ACTIVE_ALL_EQUAL")]] extern vec<bool, vec_dim_v<T>> warp_active_all_equal(T v);
 template<concepts::arithmetic T>
-[[callop("WARP_ACTIVE_ALL_EQUAL")]] extern vec<bool, vec_dim_v<T>> wave_active_all_equal();
+[[callop("WARP_ACTIVE_ALL_EQUAL")]] extern vec<bool, vec_dim_v<T>> wave_active_all_equal(T v);
 
 template<concepts::int_family T>
 [[callop("WARP_ACTIVE_BIT_AND")]] extern T warp_active_bit_and(T v);
