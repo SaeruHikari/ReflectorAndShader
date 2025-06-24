@@ -419,6 +419,8 @@ ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 
 StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferFlags flags)
 {
+    if (element == nullptr) ReportFatalError(L"StructuredBuffer: Element type cannot be null");
+
     const std::pair<const TypeDecl*, BufferFlags> key = { element, flags };
     auto&& iter = _buffers.find(key);
     if (iter != _buffers.end())

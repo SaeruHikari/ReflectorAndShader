@@ -357,6 +357,12 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
             const auto CacheFlags = Arguments.get(1).getAsIntegral().getLimitedValue();
             const auto BufferFlag = (CacheFlags == 2) ? SSL::BufferFlags::Read : SSL::BufferFlags::ReadWrite;
+            
+            if (ET == nullptr)
+                ReportFatalError(recordDecl, "Error element type!");
+            else if (getType(ET) == nullptr)
+                VisitRecordDecl(ET->getAsRecordDecl());
+
             if (ET->isVoidType())
                 addType(Type, AST.ByteBuffer((SSL::BufferFlags)BufferFlag));
             else
@@ -386,7 +392,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         }
         else if (What == "bindless_array")
         {
-            
+            addType(Type, AST.DeclareBuiltinType(L"bindless_array", 0));
         }
         else
         {
@@ -503,10 +509,11 @@ SSL::FunctionDecl* ASTConsumer::recordFunction(const clang::FunctionDecl *x, llv
     {
         const bool isConst = param->getType().isConstQualified();
         const bool isRef = param->getType()->isReferenceType();
-        const auto ParamQualType = param->getType().getCanonicalType().getNonReferenceType();
+        const auto ParamQualType = param->getType().getNonReferenceType().getCanonicalType();
         const auto qualifier = 
             isConst ? SSL::EVariableQualifier::Const : 
             (isRef ? SSL::EVariableQualifier::Inout : SSL::EVariableQualifier::None);
+
         auto _param = params.emplace_back(AST.DeclareParam(
             qualifier,
             getType(ParamQualType.getTypePtr()),
@@ -1045,7 +1052,7 @@ bool ASTConsumer::addType(const clang::Type* type, skr::SSL::TypeDecl* decl)
         auto kind = bt->getKind();
         if (_builtin_types.find(kind) != _builtin_types.end())
         {
-            ReportFatalError("Duplicate builtin type declaration: " + std::string(bt->getTypeClassName()));
+            ReportFatalError("Duplicate builtin type declaration: {}", std::string(bt->getTypeClassName()));
             return false;
         }
         _builtin_types[kind] = decl;
@@ -1054,7 +1061,7 @@ bool ASTConsumer::addType(const clang::Type* type, skr::SSL::TypeDecl* decl)
     {
         if (_tag_types.find(tag) != _tag_types.end())
         {
-            ReportFatalError("Duplicate tag type declaration: " + std::string(tag->getName()));
+            ReportFatalError(tag, "Duplicate tag type declaration: {}", std::string(tag->getName()));
             return false;
         }
         _tag_types[tag] = decl;
