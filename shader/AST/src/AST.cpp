@@ -369,49 +369,53 @@ VarConceptDecl* AST::DeclareVarConcept(const Name& name, std::function<bool(EVar
 
 ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 {
-    auto&& iter = _buffers.find(nullptr);
+    const std::pair<const TypeDecl*, BufferFlags> key = { nullptr, flags };
+    auto&& iter = _buffers.find(key);
     if (iter != _buffers.end())
         return dynamic_cast<ByteBufferTypeDecl*>(iter->second);
 
     auto new_type = new ByteBufferTypeDecl(*this, flags);
     _types.emplace_back(new_type);
-    _buffers[nullptr] = new_type;
+    _buffers[key] = new_type;
     return new_type;
 }
 
 StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferFlags flags)
 {
-    auto&& iter = _buffers.find(element);
+    const std::pair<const TypeDecl*, BufferFlags> key = { element, flags };
+    auto&& iter = _buffers.find(key);
     if (iter != _buffers.end())
         return dynamic_cast<StructuredBufferTypeDecl*>(iter->second);
 
     auto new_type = new StructuredBufferTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
-    _buffers[element] = new_type;
+    _buffers[key] = new_type;
     return new_type;
 }
 
 Texture2DTypeDecl* AST::Texture2D(const TypeDecl* element, TextureFlags flags)
 {
-    auto&& iter = _texture2ds.find(element);
+    const std::pair<const TypeDecl*, TextureFlags> key = { element, flags };
+    auto&& iter = _texture2ds.find(key);
     if (iter != _texture2ds.end())
         return dynamic_cast<Texture2DTypeDecl*>(iter->second);
 
     auto new_type = new Texture2DTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
-    _texture2ds[element] = new_type;
+    _texture2ds[key] = new_type;
     return new_type;
 }
 
 Texture3DTypeDecl* AST::Texture3D(const TypeDecl* element, TextureFlags flags)
 {
-    auto&& iter = _texture3ds.find(element);
+    const std::pair<const TypeDecl*, TextureFlags> key = { element, flags };
+    auto&& iter = _texture3ds.find(key);
     if (iter != _texture3ds.end())
         return dynamic_cast<Texture3DTypeDecl*>(iter->second);
 
     auto new_type = new Texture3DTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
-    _texture3ds[element] = new_type;
+    _texture3ds[key] = new_type;
     return new_type;
 }
 

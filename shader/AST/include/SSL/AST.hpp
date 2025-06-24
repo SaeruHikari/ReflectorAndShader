@@ -136,9 +136,9 @@ private:
 
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
-    std::unordered_map<const TypeDecl*, BufferTypeDecl*> _buffers;
-    std::unordered_map<const TypeDecl*, Texture2DTypeDecl*> _texture2ds;
-    std::unordered_map<const TypeDecl*, Texture3DTypeDecl*> _texture3ds;
+    std::map<std::pair<const TypeDecl*, BufferFlags>, BufferTypeDecl*> _buffers;
+    std::map<std::pair<const TypeDecl*, TextureFlags>, Texture2DTypeDecl*> _texture2ds;
+    std::map<std::pair<const TypeDecl*, TextureFlags>, Texture3DTypeDecl*> _texture3ds;
     std::vector<TypeDecl*> _types;
     std::vector<GlobalVarDecl*> _globals;
     std::vector<FunctionDecl*> _funcs;

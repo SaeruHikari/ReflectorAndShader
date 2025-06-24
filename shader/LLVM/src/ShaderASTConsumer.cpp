@@ -329,22 +329,23 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
+            const auto CacheFlags = Arguments.get(1).getAsIntegral().getLimitedValue();
+            const auto BufferFlag = (CacheFlags == 2) ? SSL::BufferFlag::Read : SSL::BufferFlag::ReadWrite; 
             if (ET->isVoidType())
-                addType(Type, AST.ByteBuffer((SSL::BufferFlags)SSL::BufferFlag::ReadWrite));
+                addType(Type, AST.ByteBuffer((SSL::BufferFlags)BufferFlag));
             else
-                addType(Type, AST.StructuredBuffer(getType(ET), (SSL::BufferFlags)SSL::BufferFlag::ReadWrite));
+                addType(Type, AST.StructuredBuffer(getType(ET), (SSL::BufferFlags)BufferFlag));
         }
-        else if (What == "image")
+        else if (What == "image" || What == "volume")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
-            addType(Type, AST.Texture2D(getType(ET), (SSL::TextureFlags)SSL::TextureFlag::ReadWrite));
-        }
-        else if (What == "volume")
-        {
-            const auto& Arguments = TSD->getTemplateArgs();
-            const auto* ET = Arguments.get(0).getAsType().getTypePtr();
-            addType(Type, AST.Texture3D(getType(ET), (SSL::TextureFlags)SSL::TextureFlag::ReadWrite));
+            const auto CacheFlags = Arguments.get(1).getAsIntegral().getLimitedValue();
+            const auto TextureFlag = (CacheFlags == 2) ? SSL::TextureFlag::Read : SSL::TextureFlag::ReadWrite;
+            if (What == "image")
+                addType(Type, AST.Texture2D(getType(ET), (SSL::TextureFlags)TextureFlag));
+            else
+                addType(Type, AST.Texture3D(getType(ET), (SSL::TextureFlags)TextureFlag));
         }
         else if (What == "bindless_array")
         {

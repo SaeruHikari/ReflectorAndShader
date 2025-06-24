@@ -156,43 +156,7 @@ BufferTypeDecl::BufferTypeDecl(AST& ast, const String& name, BufferFlags flags)
 ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
     : BufferTypeDecl(ast, std::format(L"{}ByteAddressBuffer", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L""), flags)
 {
-    /*
-    this->add_method(ast.DeclareMethod(this, L"GetCount", ast.UIntType, {}, nullptr));
 
-    std::vector<ParamVarDecl*> address = { ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"address") };
-    this->add_method(ast.DeclareMethod(this, L"Load", ast.UIntType, address, nullptr));
-    this->add_method(ast.DeclareMethod(this, L"Load2", ast.UInt2Type, address, nullptr));
-    this->add_method(ast.DeclareMethod(this, L"Load3", ast.UInt3Type, address, nullptr));
-    this->add_method(ast.DeclareMethod(this, L"Load4", ast.UInt4Type, address, nullptr));
-
-    if (flags & (uint32_t)BufferFlag::ReadWrite)
-    {
-        this->add_method(ast.DeclareMethod(this, L"Store", ast.VoidType, address, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"Store2", ast.VoidType, address, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"Store3", ast.VoidType, address, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"Store4", ast.VoidType, address, nullptr));
-
-        std::vector<ParamVarDecl*> ps0 = {
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"dest"),
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"value")
-        };
-        this->add_method(ast.DeclareMethod(this, L"InterlockedAdd", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedAnd", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedMin", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedMax", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedOr", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedXor", ast.UIntType, ps0, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedExchange", ast.UIntType, ps0, nullptr));
-
-        std::vector<ParamVarDecl*> ps1 = {
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"dest"),
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"compare"),
-            ast.DeclareParam(EVariableQualifier::None, ast.UIntType, L"value")
-        };
-        this->add_method(ast.DeclareMethod(this, L"InterlockedCompareStore", ast.VoidType, ps1, nullptr));
-        this->add_method(ast.DeclareMethod(this, L"InterlockedCompareExchange", ast.UIntType, ps1, nullptr));
-    }
-    */
 }
 
 StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags)
