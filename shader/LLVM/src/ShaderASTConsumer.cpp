@@ -405,6 +405,7 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         if (getType(ThisQualType))
             ReportFatalError(recordDecl, "Duplicate type declaration: {}", TypeName);
 
+        std::replace(TypeName.begin(), TypeName.end(), ':', '_');
         auto NewType = AST.DeclareType(ToText(TypeName), {});
         if (NewType == nullptr)
             ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
