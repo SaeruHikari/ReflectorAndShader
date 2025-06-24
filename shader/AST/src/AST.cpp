@@ -249,6 +249,7 @@ TypeDecl* AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
         return nullptr;
     auto new_type = new TypeDecl(*this, name, fields, false);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     return new_type;
 }
 
@@ -259,6 +260,7 @@ const TypeDecl* AST::DeclareBuiltinType(const Name& name, uint32_t size, uint32_
         return nullptr;
     auto new_type = new TypeDecl(*this, name, size, alignment, fields, true);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     return new_type;
 }
 
@@ -269,6 +271,7 @@ const ScalarTypeDecl* AST::DeclareScalarType(const Name& name, uint32_t size, ui
         return nullptr;
     auto new_type = new ScalarTypeDecl(*this, name, size, alignment);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     return new_type;
 }
 
@@ -276,6 +279,7 @@ const VectorTypeDecl* AST::DeclareVectorType(const TypeDecl* element, uint32_t c
 {
     auto new_type = new VectorTypeDecl(*this, element, count, alignment);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     return new_type;
 }
 
@@ -283,6 +287,7 @@ const MatrixTypeDecl* AST::DeclareMatrixType(const TypeDecl* element, uint32_t n
 {
     auto new_type = new MatrixTypeDecl(*this, element, n, alignment);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     return new_type;
 }
 
@@ -293,6 +298,7 @@ const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t cou
         return found->second;
     auto new_type = new ArrayTypeDecl(*this, element, count);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     _arrs.insert({{element, count}, new_type});
     return new_type;
 }
@@ -300,6 +306,8 @@ const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t cou
 GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
 {
     // TODO: CHECK THIS IS NOT RESOURCE TYPE
+    if (type == nullptr) ReportFatalError(L"GlobalConstant {}: Type cannot be null for parameter declaration", name);
+    
     ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::Const, type, name, initializer);
     _decls.emplace_back(decl);
@@ -310,6 +318,8 @@ GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name
 GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
 {
     // TODO: CHECK THIS IS RESOURCE TYPE
+    if (type == nullptr) ReportFatalError(L"GlobalResource {}: Type cannot be null for parameter declaration", name);
+
     ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::None, type, name, nullptr);
     _decls.emplace_back(decl);
@@ -319,6 +329,8 @@ GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name
 
 FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 {
+    if (type == nullptr) ReportFatalError(L"Field {}: Type cannot be null for parameter declaration", name);
+    
     ReservedWordsCheck(name);
     auto decl = new FieldDecl(*this, name, type);
     _decls.emplace_back(decl);
@@ -354,6 +366,8 @@ FunctionDecl* AST::DeclareFunction(const Name& name, const TypeDecl* return_type
 
 ParamVarDecl* AST::DeclareParam(EVariableQualifier qualifier, const TypeDecl* type, const Name& name)
 {
+    if (type == nullptr) ReportFatalError(L"Param {}: Type cannot be null for parameter declaration", name);
+
     ReservedWordsCheck(name);
     auto decl = new ParamVarDecl(*this, qualifier, type, name);
     _decls.emplace_back(decl);
@@ -367,6 +381,28 @@ VarConceptDecl* AST::DeclareVarConcept(const Name& name, std::function<bool(EVar
     return decl;
 }
 
+const AccelTypeDecl* AST::Accel()
+{
+    if (_accel)
+        return _accel;
+
+    _accel = new AccelTypeDecl(*this);
+    _decls.emplace_back(_accel);
+    return _accel;
+}
+
+const RayQueryTypeDecl* AST::RayQuery(RayQueryFlags flags)
+{
+    auto found = _ray_queries.find(flags);
+    if (found != _ray_queries.end())
+        return found->second;
+
+    auto new_type = new RayQueryTypeDecl(*this, flags);
+    _decls.emplace_back(new_type);
+    _ray_queries[flags] = new_type;
+    return new_type;
+}
+
 ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 {
     const std::pair<const TypeDecl*, BufferFlags> key = { nullptr, flags };
@@ -376,6 +412,7 @@ ByteBufferTypeDecl* AST::ByteBuffer(BufferFlags flags)
 
     auto new_type = new ByteBufferTypeDecl(*this, flags);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     _buffers[key] = new_type;
     return new_type;
 }
@@ -389,6 +426,7 @@ StructuredBufferTypeDecl* AST::StructuredBuffer(const TypeDecl* element, BufferF
 
     auto new_type = new StructuredBufferTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     _buffers[key] = new_type;
     return new_type;
 }
@@ -402,6 +440,7 @@ Texture2DTypeDecl* AST::Texture2D(const TypeDecl* element, TextureFlags flags)
 
     auto new_type = new Texture2DTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     _texture2ds[key] = new_type;
     return new_type;
 }
@@ -415,6 +454,7 @@ Texture3DTypeDecl* AST::Texture3D(const TypeDecl* element, TextureFlags flags)
 
     auto new_type = new Texture3DTypeDecl(*this, element, flags);
     _types.emplace_back(new_type);
+    _decls.emplace_back(new_type);
     _texture3ds[key] = new_type;
     return new_type;
 }
@@ -580,7 +620,7 @@ void AST::DeclareIntrinstics()
         });
     auto ValueFamily = DeclareVarConcept(L"ValueFamily", 
         [this, ResourceFamily](EVariableQualifier qualifier, const TypeDecl* type) {
-            return !ResourceFamily->validate(qualifier, type);
+            return dynamic_cast<const skr::SSL::ValueTypeDecl*>(type) != nullptr;
         });
 
     auto IntFamily = DeclareVarConcept(L"IntFamily", 

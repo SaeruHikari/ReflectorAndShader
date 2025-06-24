@@ -102,14 +102,21 @@ protected:
     std::vector<ConstructorDecl*> _ctors;
 };
 
-struct ScalarTypeDecl : public TypeDecl
+struct ValueTypeDecl : public TypeDecl
+{
+protected:
+    ValueTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
+    ValueTypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
+};
+
+struct ScalarTypeDecl : public ValueTypeDecl
 {
 protected:
     friend struct AST;
     ScalarTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment);
 };
 
-struct VectorTypeDecl : public TypeDecl
+struct VectorTypeDecl : public ValueTypeDecl
 {
 public:
     const auto& element() const { return _element; }
@@ -122,7 +129,7 @@ protected:
     uint32_t _count = 0; 
 };
 
-struct MatrixTypeDecl : public TypeDecl
+struct MatrixTypeDecl : public ValueTypeDecl
 {
 public:
     const auto& columns() const { return _n; }
@@ -136,10 +143,35 @@ protected:
     uint32_t _n = 0;
 };
 
+struct ArrayTypeDecl : public ValueTypeDecl
+{
+protected:
+    friend struct AST;
+    ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count);
+};
+
+struct RayQueryTypeDecl : public TypeDecl
+{
+public:
+    RayQueryFlags flags() const { return _flags; }
+
+protected:
+    friend struct AST;
+    RayQueryTypeDecl(AST& ast, RayQueryFlags flags);
+    RayQueryFlags _flags = RayQueryFlags::None; // flags for the ray query type
+};
+
 struct ResourceTypeDecl : public TypeDecl
 {
 protected:
     ResourceTypeDecl(AST& ast, const String& name);
+};
+
+struct AccelTypeDecl : public ResourceTypeDecl
+{
+protected:
+    friend struct AST;
+    AccelTypeDecl(AST& ast);
 };
 
 struct BufferTypeDecl : public ResourceTypeDecl
@@ -196,13 +228,6 @@ struct Texture3DTypeDecl : public TextureTypeDecl
 protected:
     friend struct AST;
     Texture3DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags);
-};
-
-struct ArrayTypeDecl : public TypeDecl
-{
-protected:
-    friend struct AST;
-    ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count);
 };
 
 struct GlobalVarDecl : public VarDecl

@@ -180,7 +180,7 @@ void mandelbrot(skr::SSL::AST& AST)
         auto kernel_body = AST.Block({});
         auto sv_tid = AST.DeclareParam(EVariableQualifier::Const, AST.UInt2Type, L"tid");
         sv_tid->add_attr(AST.DeclareAttr<BuiltinAttr>(L"ThreadID"));
-        auto output_buf = AST.DeclareGlobalResource(AST.StructuredBuffer(AST.Float4Type, (uint32_t)BufferFlag::ReadWrite), L"output");
+        auto output_buf = AST.DeclareGlobalResource(AST.StructuredBuffer(AST.Float4Type, BufferFlags::ReadWrite), L"output");
         output_buf->add_attr(AST.DeclareAttr<ResourceBindAttr>());
         std::vector<ParamVarDecl*> kernel_params = { sv_tid };
         auto kernel = AST.DeclareFunction(L"kernel", AST.VoidType, kernel_params, kernel_body);

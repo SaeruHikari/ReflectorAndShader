@@ -236,6 +236,8 @@ bool ASTConsumer::VisitEnumDecl(clang::EnumDecl* enumDecl)
     if (IsDump(enumDecl))
         enumDecl->dump();
 
+    if (getType(enumDecl->getTypeForDecl()) != nullptr) return true; // already processed
+
     auto UnderlyingType = getType(enumDecl->getIntegerType().getTypePtr());
     addType(enumDecl->getTypeForDecl(), UnderlyingType);
 
@@ -258,10 +260,26 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
     if (IsDump(recordDecl))
         recordDecl->dump();
 
+    for (auto subDecl : recordDecl->decls())
+    {
+        if (auto SubRecordDecl = llvm::dyn_cast<RecordDecl>(subDecl))
+        {
+            if (SubRecordDecl->isCompleteDefinition())
+            {
+                VisitRecordDecl(SubRecordDecl);
+            }
+        }
+        else if (auto SubEnumDecl = llvm::dyn_cast<EnumDecl>(subDecl))
+        {
+            VisitEnumDecl(SubEnumDecl);
+        }
+    }
+
     const auto* Type = recordDecl->getTypeForDecl();
     const auto* TSD = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(recordDecl);
     const auto* TSD_Partial = llvm::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(recordDecl);
     const auto* TemplateItSelf = recordDecl->getDescribedTemplate();
+    if (getType(recordDecl->getTypeForDecl()) != nullptr) return true; // already processed
     if (recordDecl->isUnion()) return true; // unions are not supported
     if (!recordDecl->isCompleteDefinition()) return true; // skip forward declares
     if (TSD && !TSD->isCompleteDefinition()) return true; // skip no-def template specs
@@ -278,6 +296,8 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             const auto* ET = Arguments.get(0).getAsType().getCanonicalType()->getAs<clang::BuiltinType>();
             const uint64_t N = Arguments.get(1).getAsIntegral().getLimitedValue();
             
+            if (ET == nullptr || getType(ET) == nullptr)
+                ReportFatalError(recordDecl, "Error element type!");
             if (N <= 1 || N > 4) 
                 ReportFatalError("Unsupported vec size: " + std::to_string(N));
 
@@ -311,6 +331,12 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             const auto& Arguments = TSD->getTemplateArgs();
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
             const auto N = Arguments.get(1).getAsIntegral().getLimitedValue();
+            
+            if (ET == nullptr)
+                ReportFatalError(recordDecl, "Error element type!");
+            else if (getType(ET) == nullptr)
+                VisitRecordDecl(ET->getAsRecordDecl());
+
             auto ArrayType = AST.DeclareArrayType(getType(ET), uint32_t(N));
             addType(Type, ArrayType);
         }
@@ -330,7 +356,7 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             const auto& Arguments = TSD->getTemplateArgs();
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
             const auto CacheFlags = Arguments.get(1).getAsIntegral().getLimitedValue();
-            const auto BufferFlag = (CacheFlags == 2) ? SSL::BufferFlag::Read : SSL::BufferFlag::ReadWrite; 
+            const auto BufferFlag = (CacheFlags == 2) ? SSL::BufferFlags::Read : SSL::BufferFlags::ReadWrite;
             if (ET->isVoidType())
                 addType(Type, AST.ByteBuffer((SSL::BufferFlags)BufferFlag));
             else
@@ -341,23 +367,26 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
             const auto& Arguments = TSD->getTemplateArgs();
             const auto* ET = Arguments.get(0).getAsType().getTypePtr();
             const auto CacheFlags = Arguments.get(1).getAsIntegral().getLimitedValue();
-            const auto TextureFlag = (CacheFlags == 2) ? SSL::TextureFlag::Read : SSL::TextureFlag::ReadWrite;
+            const auto TextureFlag = (CacheFlags == 2) ? SSL::TextureFlags::Read : SSL::TextureFlags::ReadWrite;
             if (What == "image")
                 addType(Type, AST.Texture2D(getType(ET), (SSL::TextureFlags)TextureFlag));
             else
                 addType(Type, AST.Texture3D(getType(ET), (SSL::TextureFlags)TextureFlag));
         }
+        else if (What == "accel")
+        {
+            addType(Type, AST.Accel());
+        }
+        else if (What == "ray_query")
+        {
+            const auto& Arguments = TSD->getTemplateArgs();
+            const auto Flags = Arguments.get(0).getAsIntegral().getLimitedValue();
+            auto RayQueryFlags = (SSL::RayQueryFlags)Flags;
+            addType(Type, AST.RayQuery(RayQueryFlags));
+        }
         else if (What == "bindless_array")
         {
             
-        }
-        else if (What == "accel")
-        {
-            
-        }
-        else if (What == "ray_query_all" || What == "ray_query_any")
-        {
-
         }
         else
         {
@@ -366,10 +395,14 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
         return true;
     } 
 
+    auto TypeName = TSD ? std::format("{}_{}", TSD->getQualifiedNameAsString(), (intptr_t)TSD) : recordDecl->getQualifiedNameAsString();
     if (getType(Type))
-        ReportFatalError(recordDecl, "Duplicate type declaration: {}", std::string(recordDecl->getName()));
+        ReportFatalError(recordDecl, "Duplicate type declaration: {}", TypeName);
 
-    auto NewType = AST.DeclareType(ToText(recordDecl->getName()), {});
+    auto NewType = AST.DeclareType(ToText(TypeName), {});
+    if (NewType == nullptr)
+        ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
+
     for (auto field : recordDecl->fields())
     {
         if (IsDump(field)) 
@@ -377,13 +410,19 @@ bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
 
         auto desugaredFTy = field->getType().getCanonicalType();
         auto fieldType = desugaredFTy->getAs<clang::Type>();
+        auto _fieldType = getType(fieldType);
+        if (!_fieldType)
+        {
+            VisitRecordDecl(fieldType->getAsRecordDecl());
+            _fieldType = getType(fieldType);
+        }
 
-        if (auto ft = getType(fieldType))
-            NewType->add_field(AST.DeclareField(ToText(field->getName()), ft));
-        else
-            ReportFatalError("Unknown field type: " + std::string(fieldType->getTypeClassName()) + " for field: " + field->getName().str());
-    } 
-    
+        if (!_fieldType)
+            ReportFatalError(recordDecl, "Unknown field type: {} for field: {}", std::string(fieldType->getTypeClassName()), field->getName().str());
+
+        NewType->add_field(AST.DeclareField(ToText(field->getName()), _fieldType));
+    }
+
     addType(Type, NewType);
     return true;
 }

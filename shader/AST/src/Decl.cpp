@@ -121,28 +121,58 @@ MethodDecl* TypeDecl::get_method(const Name& name) const
     return nullptr;
 }
 
+ValueTypeDecl::ValueTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment, std::span<FieldDecl*> fields, bool is_builtin)
+    : TypeDecl(ast, name, size, alignment, fields, is_builtin)
+{
+
+}
+
+ValueTypeDecl::ValueTypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin)
+    : TypeDecl(ast, name, fields, is_builtin)
+{
+
+}
+
 ScalarTypeDecl::ScalarTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment)
-    : TypeDecl(ast, name, size, alignment, {}, true)
+    : ValueTypeDecl(ast, name, size, alignment, {}, true)
 {
 
 }
 
 VectorTypeDecl::VectorTypeDecl(AST& ast, const TypeDecl* element, uint32_t count, uint32_t alignment)
-    : TypeDecl(ast, std::format(L"{}{}", element->name(), count), element->size() * count, alignment, {}, true),
+    : ValueTypeDecl(ast, std::format(L"{}{}", element->name(), count), element->size() * count, alignment, {}, true),
     _element(element), _count(count)
 {
 
 }
 
 MatrixTypeDecl::MatrixTypeDecl(AST& ast, const TypeDecl* element, uint32_t n, uint32_t alignment)
-    : TypeDecl(ast, std::format(L"{}{}x{}", element->name(), n, n), element->size() * n * n, alignment, {}, true),
+    : ValueTypeDecl(ast, std::format(L"{}{}x{}", element->name(), n, n), element->size() * n * n, alignment, {}, true),
     _element(element), _n(n)
+{
+
+}
+
+ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)
+    : ValueTypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true)
+{
+
+}
+
+RayQueryTypeDecl::RayQueryTypeDecl(AST& ast, RayQueryFlags flags)
+    : TypeDecl(ast, std::format(L"RayQuery<{}>", (uint32_t)flags), 0, 0, {}, true), _flags(flags)
 {
 
 }
 
 ResourceTypeDecl::ResourceTypeDecl(AST& ast, const String& name)
     : TypeDecl(ast, name, 0, 0, {}, true)
+{
+
+}
+
+AccelTypeDecl::AccelTypeDecl(AST& ast)
+    : ResourceTypeDecl(ast, L"AccelerationStructure")
 {
 
 }
@@ -154,13 +184,13 @@ BufferTypeDecl::BufferTypeDecl(AST& ast, const String& name, BufferFlags flags)
 }
 
 ByteBufferTypeDecl::ByteBufferTypeDecl(AST& ast, BufferFlags flags)
-    : BufferTypeDecl(ast, std::format(L"{}ByteAddressBuffer", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L""), flags)
+    : BufferTypeDecl(ast, std::format(L"{}ByteAddressBuffer", has_flag(flags, BufferFlags::ReadWrite) ? L"RW" : L""), flags)
 {
 
 }
 
 StructuredBufferTypeDecl::StructuredBufferTypeDecl(AST& ast, const TypeDecl* element, BufferFlags flags)
-    : BufferTypeDecl(ast, std::format(L"{}StructuredBuffer<{}>", (flags & (uint32_t)BufferFlag::ReadWrite) ? L"RW" : L"", element->name()), flags), _element(element)
+    : BufferTypeDecl(ast, std::format(L"{}StructuredBuffer<{}>", has_flag(flags, BufferFlags::ReadWrite) ? L"RW" : L"", element->name()), flags), _element(element)
 {
 
 }
@@ -172,19 +202,13 @@ TextureTypeDecl::TextureTypeDecl(AST& ast, const String& name, const TypeDecl* e
 }
 
 Texture2DTypeDecl::Texture2DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags)
-    : TextureTypeDecl(ast, std::format(L"{}Texture2D<{}>", (flags & (uint32_t)TextureFlag::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
+    : TextureTypeDecl(ast, std::format(L"{}Texture2D<{}>", has_flag(flags, TextureFlags::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
 {
 
 }
 
 Texture3DTypeDecl::Texture3DTypeDecl(AST& ast, const TypeDecl* element, TextureFlags flags)
-    : TextureTypeDecl(ast, std::format(L"{}Texture3D<{}>", (flags & (uint32_t)TextureFlag::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
-{
-
-}
-
-ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)
-    : TypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true)
+    : TextureTypeDecl(ast, std::format(L"{}Texture3D<{}>", has_flag(flags, TextureFlags::ReadWrite) ? L"RW" : L"", element->name()), element, flags)
 {
 
 }

@@ -61,19 +61,60 @@ enum struct ShaderStage : uint32_t
     Compute
 };
 
-enum struct BufferFlag : uint32_t
+enum struct BufferFlags : uint32_t
 {
+    None = 0x0,
     Read = 0x1,
     ReadWrite = 0x2,
 };
-using BufferFlags = uint32_t;
+inline constexpr BufferFlags operator|(BufferFlags lhs, BufferFlags rhs) {
+    return static_cast<BufferFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+inline constexpr BufferFlags operator&(BufferFlags lhs, BufferFlags rhs) {
+    return static_cast<BufferFlags>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+inline constexpr bool has_flag(BufferFlags flags, BufferFlags flag) {
+    return (flags & flag) != BufferFlags::None;
+}
 
-enum struct TextureFlag : uint32_t
+enum struct TextureFlags : uint32_t
 {
+    None = 0x0,
     Read = 0x1,
     ReadWrite = 0x2
 };
-using TextureFlags = uint32_t;
+inline constexpr TextureFlags operator|(TextureFlags lhs, TextureFlags rhs) {
+    return static_cast<TextureFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+inline constexpr TextureFlags operator&(TextureFlags lhs, TextureFlags rhs) {
+    return static_cast<TextureFlags>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+inline constexpr bool has_flag(TextureFlags flags, TextureFlags flag) {
+    return (flags & flag) != TextureFlags::None;
+}
+
+enum struct RayQueryFlags : uint32_t
+{
+    None = 0x0,
+    ForceOpaque = 0x1,
+    ForceNonOpaque = 0x2,
+    AcceptFirstAndEndSearch = 0x4,
+    CullOpaque = 0x8,
+    CullNonOpaque = 0x10,
+    CullFrontFace = 0x20,
+    CullBackFace = 0x40,
+    CullTriangle = 0x80,
+    CullProcedural = 0x100
+};
+inline constexpr RayQueryFlags operator|(RayQueryFlags lhs, RayQueryFlags rhs) {
+    return static_cast<RayQueryFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+inline constexpr RayQueryFlags operator&(RayQueryFlags lhs, RayQueryFlags rhs) {
+    return static_cast<RayQueryFlags>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+inline constexpr bool has_flag(RayQueryFlags flags, RayQueryFlags flag) {
+    return (flags & flag) != RayQueryFlags::None;
+}
 
 // https://www.w3.org/TR/WGSL/#alignment-and-size
 struct alignas(2) GPUHalf

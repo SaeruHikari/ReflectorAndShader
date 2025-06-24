@@ -81,6 +81,8 @@ public:
     SpecializedFunctionDecl* SpecializeTemplateFunction(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
     SpecializedMethodDecl* SpecializeTemplateMethod(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
 
+    const AccelTypeDecl* Accel();
+    const RayQueryTypeDecl* RayQuery(RayQueryFlags flags);
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
     StructuredBufferTypeDecl* StructuredBuffer(const TypeDecl* element, BufferFlags flags);
     Texture2DTypeDecl* Texture2D(const TypeDecl* element, TextureFlags flags);
@@ -136,6 +138,8 @@ private:
 
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
+    AccelTypeDecl* _accel = nullptr;
+    std::map<RayQueryFlags, RayQueryTypeDecl*> _ray_queries;
     std::map<std::pair<const TypeDecl*, BufferFlags>, BufferTypeDecl*> _buffers;
     std::map<std::pair<const TypeDecl*, TextureFlags>, Texture2DTypeDecl*> _texture2ds;
     std::map<std::pair<const TypeDecl*, TextureFlags>, Texture3DTypeDecl*> _texture3ds;
@@ -154,7 +158,6 @@ public:
     void DeclareIntrinstics();
 
     const TypeDecl* VoidType = nullptr;
-    
     const TypeDecl* BoolType = nullptr;
     VEC_TYPES(Bool);
     MATRIX_TYPES(Bool);
