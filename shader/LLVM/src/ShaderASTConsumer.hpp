@@ -23,7 +23,7 @@ public:
     void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 public:
-    // ASTVisitor
+    // ASTVisitor APIs
     bool shouldVisitTemplateInstantiations() const { return true; }
     bool VisitEnumDecl(clang::EnumDecl* x);
     bool VisitRecordDecl(clang::RecordDecl* x);
@@ -32,15 +32,18 @@ public:
     bool VisitVarDecl(clang::VarDecl* x);
 
 protected:
-    SSL::FunctionDecl* recordFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
+    SSL::TypeDecl* TranslateType(clang::QualType type);
+    SSL::TypeDecl* TranslateRecordDecl(clang::RecordDecl* x);
+    SSL::TypeDecl* TranslateEnumDecl(clang::EnumDecl* x);
+    SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
 
+    Stmt* TranslateStmt(const clang::Stmt *x);
     template <typename T>
-    T* traverseStmt(const clang::Stmt* x);
-    Stmt* traverseStmt(const clang::Stmt *x);
+    T* TranslateStmt(const clang::Stmt* x);
     
-    bool addType(const clang::Type* type, const skr::SSL::TypeDecl* decl);
-    bool addType(const clang::Type* type, skr::SSL::TypeDecl* decl);
-    skr::SSL::TypeDecl* getType(const clang::Type* type) const;
+    bool addType(clang::QualType type, const skr::SSL::TypeDecl* decl);
+    bool addType(clang::QualType type, skr::SSL::TypeDecl* decl);
+    skr::SSL::TypeDecl* getType(clang::QualType type) const;
     bool addVar(const clang::VarDecl* var, skr::SSL::VarDecl* decl);
     skr::SSL::VarDecl* getVar(const clang::VarDecl* var) const;
     bool addFunc(const clang::FunctionDecl* func, skr::SSL::FunctionDecl* decl);
