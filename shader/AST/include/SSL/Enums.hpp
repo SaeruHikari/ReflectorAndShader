@@ -50,6 +50,9 @@ enum struct BinaryOp : uint32_t {
     MUL_ASSIGN,
     DIV_ASSIGN,
     MOD_ASSIGN,
+    BIT_OR_ASSIGN,
+    BIT_XOR_ASSIGN,
+    SHL_ASSIGN,
 
     COUNT
 };
@@ -91,6 +94,21 @@ inline constexpr TextureFlags operator&(TextureFlags lhs, TextureFlags rhs) {
 }
 inline constexpr bool has_flag(TextureFlags flags, TextureFlags flag) {
     return (flags & flag) != TextureFlags::None;
+}
+
+enum struct ArrayFlags : uint32_t
+{
+    None = 0x0,
+    Shared = 0x1
+};
+inline constexpr ArrayFlags operator|(ArrayFlags lhs, ArrayFlags rhs) {
+    return static_cast<ArrayFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+inline constexpr ArrayFlags operator&(ArrayFlags lhs, ArrayFlags rhs) {
+    return static_cast<ArrayFlags>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+inline constexpr bool has_flag(ArrayFlags flags, ArrayFlags flag) {
+    return (flags & flag) != ArrayFlags::None;
 }
 
 enum struct RayQueryFlags : uint32_t

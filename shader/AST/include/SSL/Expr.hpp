@@ -24,7 +24,14 @@ protected:
     const TypeDecl* _type = nullptr;
 };
 
-struct CastExpr : Expr
+struct AccessExpr : public Expr
+{
+private:
+    friend struct AST;
+    AccessExpr(AST& ast, Expr* base, Expr* index);
+};
+
+struct CastExpr : public Expr
 {
 public:
     Expr* expr() const { return _expr; }
@@ -34,14 +41,14 @@ protected:
     Expr* _expr = nullptr;
 };
 
-struct BitwiseCastExpr : CastExpr
+struct BitwiseCastExpr : public CastExpr
 {
 private:
     friend struct AST;
     BitwiseCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
-struct BinaryExpr : Expr
+struct BinaryExpr : public Expr
 {
 public:
     const Expr* left() const { return _left; }
@@ -56,7 +63,7 @@ private:
     const BinaryOp _op = BinaryOp::ADD;
 };
 
-struct CallExpr : Expr
+struct CallExpr : public Expr
 {
 public:
     const DeclRefExpr* callee() const { return _callee; }
@@ -69,7 +76,22 @@ private:
     std::vector<Expr*> _args;
 };
 
-struct ConstantExpr : Expr
+struct ConditionalExpr : public Expr
+{
+public:
+    const Expr* cond() const { return _cond; }
+    const Expr* then_expr() const { return _then; }
+    const Expr* else_expr() const { return _else; }
+
+private:
+    friend struct AST;
+    ConditionalExpr(AST& ast, Expr* cond, Expr* _then, Expr* _else);
+    Expr* _cond = nullptr;
+    Expr* _then = nullptr;
+    Expr* _else = nullptr;
+};
+
+struct ConstantExpr : public Expr
 {
 public:
     const std::variant<IntValue, FloatValue> value;
@@ -80,7 +102,7 @@ private:
     ConstantExpr(AST& ast, const FloatValue& v);
 };
 
-struct ConstructExpr : Expr
+struct ConstructExpr : public Expr
 {
 public:
     std::span<Expr* const> args() const { return _args; }
@@ -91,7 +113,7 @@ private:
     std::vector<Expr*> _args;
 };
 
-struct DeclRefExpr : Expr
+struct DeclRefExpr : public Expr
 {
 public:
     const Decl* decl() const { return _decl; }
@@ -102,14 +124,14 @@ private:
     const Decl* _decl = nullptr;
 };
 
-struct ImplicitCastExpr : CastExpr
+struct ImplicitCastExpr : public CastExpr
 {
 private:
     friend struct AST;
     ImplicitCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
-struct InitListExpr : Expr
+struct InitListExpr : public Expr
 {
 private:
     friend struct AST;
@@ -117,7 +139,7 @@ private:
     std::vector<Expr*> _exprs;
 };
 
-struct MemberExpr : Expr
+struct MemberExpr : public Expr
 {
 public:
     const Expr* owner() const { return _owner; }
@@ -129,7 +151,7 @@ protected:
     const Decl* _member_decl = nullptr;
 };
 
-struct FieldExpr : MemberExpr
+struct FieldExpr : public MemberExpr
 {
 public:
     const FieldDecl* field_decl() const;
@@ -139,7 +161,7 @@ private:
     FieldExpr(AST& ast, const Expr* owner, const FieldDecl* field);
 };
 
-struct MethodExpr : MemberExpr
+struct MethodExpr : public MemberExpr
 {
 public:
     const MethodDecl* method_decl() const;
@@ -149,7 +171,7 @@ private:
     MethodExpr(AST& ast, const DeclRefExpr* owner, const FunctionDecl* method);
 };
 
-struct MethodCallExpr : Expr
+struct MethodCallExpr : public Expr
 {
 public:
     const MemberExpr* callee() const { return _callee; }
@@ -162,7 +184,7 @@ private:
     std::vector<Expr*> _args;
 };
 
-struct SwizzleExpr : Expr
+struct SwizzleExpr : public Expr
 {
 public:
     const Expr* expr() const { return _expr; }
@@ -176,21 +198,21 @@ private:
     Expr* _expr = nullptr;
 };
 
-struct StaticCastExpr : CastExpr
+struct StaticCastExpr : public CastExpr
 {
 private:
     friend struct AST;
     StaticCastExpr(AST& ast, const TypeDecl* type, Expr* expr);
 };
 
-struct ThisExpr final : Expr
+struct ThisExpr final : public Expr
 {
 private:
     friend struct AST;
     ThisExpr(AST& ast, const TypeDecl* type);
 };
 
-struct UnaryExpr : Expr
+struct UnaryExpr : public Expr
 {
 public:
     const UnaryOp op() const { return _op; }

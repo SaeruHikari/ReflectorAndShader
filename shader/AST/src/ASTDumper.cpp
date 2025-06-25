@@ -87,6 +87,15 @@ void ASTDumper::visit(const skr::SSL::Stmt* stmt, SourceBuilderNew& sb)
         case BinaryOp::MOD_ASSIGN:
             op_name = L" %= ";
             break;
+        case BinaryOp::BIT_OR_ASSIGN:
+            op_name = L" |= ";
+            break;
+        case BinaryOp::BIT_XOR_ASSIGN:
+            op_name = L" ^= ";
+            break;
+        case BinaryOp::SHL_ASSIGN:
+            op_name = L" <<= ";
+            break;
         default:
             assert(false && "Unsupported binary operation");
         }

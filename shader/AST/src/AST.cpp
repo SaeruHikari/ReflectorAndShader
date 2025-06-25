@@ -38,6 +38,13 @@ struct TemplateCallable : public TemplateCallableDecl
     ReturnTypeSpecializer ret_spec;
 };
 
+AccessExpr* AST::Access(Expr* base, Expr* index)
+{
+    auto expr = new AccessExpr(*this, base, index);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
 BinaryExpr* AST::Binary(BinaryOp op, Expr* left, Expr* right)
 {
     auto expr = new BinaryExpr(*this, left, right, op);
@@ -87,6 +94,13 @@ MethodCallExpr* AST::CallMethod(MemberExpr* callee, std::span<Expr*> args)
     return expr;
 }
 
+ConditionalExpr* AST::Conditional(Expr* cond, Expr* _then, Expr* _else)
+{
+    auto expr = new ConditionalExpr(*this, cond, _then, _else);
+    _stmts.emplace_back(expr);
+    return expr;
+}
+
 ConstantExpr* AST::Constant(const IntValue& v) 
 { 
     auto expr = new ConstantExpr(*this, v); 
@@ -111,6 +125,13 @@ ConstructExpr* AST::Construct(const TypeDecl* type, std::span<Expr*> args)
 ContinueStmt* AST::Continue()
 {
     auto stmt = new ContinueStmt(*this);
+    _stmts.emplace_back(stmt);
+    return stmt;
+}
+
+CommentStmt* AST::Comment(const String& text)
+{
+    auto stmt = new CommentStmt(*this, text);
     _stmts.emplace_back(stmt);
     return stmt;
 }
@@ -214,12 +235,6 @@ UnaryExpr* AST::Unary(UnaryOp op, Expr* expr)
     return unary;
 }
 
-DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer) 
-{  
-    auto decl_name = L"decl" + std::to_wstring(_decls.size());
-    return Variable(qualifier, type, decl_name, initializer); 
-}
-
 DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer) 
 {  
     ReservedWordsCheck(name);
@@ -234,6 +249,13 @@ DeclStmt* AST::Variable(EVariableQualifier qualifier, const TypeDecl* type, cons
     return stmt;
 }
 
+DeclGroupStmt* AST::DeclGroup(std::span<DeclStmt* const> children)
+{
+    auto group = new DeclGroupStmt(*this, children);
+    _stmts.emplace_back(group);
+    return group;
+}
+
 WhileStmt* AST::While(Expr* cond, CompoundStmt* body)
 {
     auto stmt = new WhileStmt(*this, cond, body);
@@ -241,13 +263,14 @@ WhileStmt* AST::While(Expr* cond, CompoundStmt* body)
     return stmt;
 }
 
-TypeDecl* AST::DeclareType(const Name& name, std::span<FieldDecl*> fields)
+TypeDecl* AST::DeclareStructure(const Name& name, std::span<FieldDecl*> fields)
 {
     ReservedWordsCheck(name);
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
-    auto new_type = new TypeDecl(*this, name, fields, false);
+
+    auto new_type = new StructureTypeDecl(*this, name, fields, false);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
     return new_type;
@@ -258,6 +281,7 @@ const TypeDecl* AST::DeclareBuiltinType(const Name& name, uint32_t size, uint32_
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
+
     auto new_type = new TypeDecl(*this, name, size, alignment, fields, true);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
@@ -269,6 +293,7 @@ const ScalarTypeDecl* AST::DeclareScalarType(const Name& name, uint32_t size, ui
     auto found = std::find_if(_types.begin(), _types.end(), [&](auto t){ return t->name() == name; });
     if (found != _types.end())
         return nullptr;
+
     auto new_type = new ScalarTypeDecl(*this, name, size, alignment);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
@@ -277,26 +302,59 @@ const ScalarTypeDecl* AST::DeclareScalarType(const Name& name, uint32_t size, ui
 
 const VectorTypeDecl* AST::DeclareVectorType(const TypeDecl* element, uint32_t count, uint32_t alignment)
 {
+    const auto key = std::make_pair(element, count);
+    auto found = _vecs.find(key);
+    if (found != _vecs.end())
+        return found->second;
+
     auto new_type = new VectorTypeDecl(*this, element, count, alignment);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
+    _vecs.insert({key, new_type});
     return new_type;
+}
+
+const VectorTypeDecl* AST::VectorType(const TypeDecl* element, uint32_t count)
+{
+    const auto key = std::make_pair(element, count);
+    auto found = _vecs.find(key);
+    if (found != _vecs.end())
+        return found->second;
+    ReportFatalError(L"Vector type with element {} and count {} does not exist!", element->name(), count);
+    return nullptr;
 }
 
 const MatrixTypeDecl* AST::DeclareMatrixType(const TypeDecl* element, uint32_t n, uint32_t alignment)
 {
+    const auto key = std::make_pair(element, std::array<uint32_t, 2>{n, n});
+    auto found = _matrices.find(key);
+    if (found != _matrices.end())
+        return found->second;
+
     auto new_type = new MatrixTypeDecl(*this, element, n, alignment);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
+    _matrices.insert({key, new_type});
     return new_type;
 }
 
-const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t count)
+const MatrixTypeDecl* AST::MatrixType(const TypeDecl* element, uint32_t n)
+{
+    const auto key = std::make_pair(element, std::array<uint32_t, 2>{n, n});
+    auto found = _matrices.find(key);
+    if (found != _matrices.end())
+        return found->second;
+    ReportFatalError(L"Matrix type with element {} and size {}x{} does not exist!", element->name(), n, n);
+    return nullptr;
+}
+
+const ArrayTypeDecl* AST::ArrayType(const TypeDecl* element, uint32_t count, ArrayFlags flags)
 {
     auto found = _arrs.find({element, count});
     if (found != _arrs.end())
         return found->second;
-    auto new_type = new ArrayTypeDecl(*this, element, count);
+
+    auto new_type = new ArrayTypeDecl(*this, element, count, flags);
     _types.emplace_back(new_type);
     _decls.emplace_back(new_type);
     _arrs.insert({{element, count}, new_type});
@@ -306,7 +364,8 @@ const ArrayTypeDecl* AST::DeclareArrayType(const TypeDecl* element, uint32_t cou
 GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer)
 {
     // TODO: CHECK THIS IS NOT RESOURCE TYPE
-    if (type == nullptr) ReportFatalError(L"GlobalConstant {}: Type cannot be null for parameter declaration", name);
+    if (type == nullptr) 
+        ReportFatalError(L"GlobalConstant {}: Type cannot be null for parameter declaration", name);
     
     ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::Const, type, name, initializer);
@@ -318,7 +377,8 @@ GlobalVarDecl* AST::DeclareGlobalConstant(const TypeDecl* type, const Name& name
 GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name)
 {
     // TODO: CHECK THIS IS RESOURCE TYPE
-    if (type == nullptr) ReportFatalError(L"GlobalResource {}: Type cannot be null for parameter declaration", name);
+    if (type == nullptr) 
+        ReportFatalError(L"GlobalResource {}: Type cannot be null for parameter declaration", name);
 
     ReservedWordsCheck(name);
     auto decl = new GlobalVarDecl(*this, EVariableQualifier::None, type, name, nullptr);
@@ -329,7 +389,8 @@ GlobalVarDecl* AST::DeclareGlobalResource(const TypeDecl* type, const Name& name
 
 FieldDecl* AST::DeclareField(const Name& name, const TypeDecl* type)
 {
-    if (type == nullptr) ReportFatalError(L"Field {}: Type cannot be null for parameter declaration", name);
+    if (type == nullptr) 
+        ReportFatalError(L"Field {}: Type cannot be null for parameter declaration", name);
     
     ReservedWordsCheck(name);
     auto decl = new FieldDecl(*this, name, type);
@@ -551,6 +612,7 @@ AST::AST() :
     // INIT_MATRIX_TYPE(Bool, GPUBool, bool),
 
     INIT_BUILTIN_TYPE(Half, float, half),
+    INIT_VEC_TYPES(Half, float, half),
 
     INIT_BUILTIN_TYPE(Float, float, float),
     INIT_VEC_TYPES(Float, float, float),
@@ -649,7 +711,7 @@ void AST::DeclareIntrinstics()
 
     auto MatrixFamily = DeclareVarConcept(L"MatrixFamily", 
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
-            return type == Float2x2Type || type == Float3x3Type || type == Float4x4Type;
+            return (dynamic_cast<const skr::SSL::MatrixTypeDecl*>(type) != nullptr);
         });
 
     auto BufferFamily = DeclareVarConcept(L"BufferFamily", 
@@ -663,7 +725,19 @@ void AST::DeclareIntrinstics()
     auto IntBufferFamily = DeclareVarConcept(L"IntBufferFamily", 
         [this](EVariableQualifier qualifier, const TypeDecl* type) {
             auto t = dynamic_cast<const skr::SSL::StructuredBufferTypeDecl*>(type);
-            return (t != nullptr) && (&t->element() == IntType);
+            return (t != nullptr) && ((&t->element() == IntType) || (&t->element() == UIntType) || 
+                                      (&t->element() == I64Type) || (&t->element() == U64Type));
+        });
+    auto IntSharedArrayFamily = DeclareVarConcept(L"IntSharedArrayFamily", 
+        [this](EVariableQualifier qualifier, const TypeDecl* type) {
+            auto t = dynamic_cast<const skr::SSL::ArrayTypeDecl*>(type);
+            return (t != nullptr) && (has_flag(t->flags(), ArrayFlags::Shared)) && (
+                    (t->element() == IntType) || (t->element() == UIntType) || 
+                    (t->element() == I64Type) || (t->element() == U64Type));
+        });
+    auto AtomicOperableFamily = DeclareVarConcept(L"AtomicOperableFamily",
+        [this, IntBufferFamily, IntSharedArrayFamily](EVariableQualifier qualifier, const TypeDecl* type) {
+            return IntBufferFamily->validate(qualifier, type) || IntSharedArrayFamily->validate(qualifier, type);
         });
 
     auto TextureFamily = DeclareVarConcept(L"TextureFamily", 
@@ -795,8 +869,8 @@ void AST::DeclareIntrinstics()
             return &bufferType->element();
         return pts[0];
     };
-    std::array<VarConceptDecl*, 3> AtomicParams = { IntBufferFamily, IntScalar, IntScalar };
-    std::array<VarConceptDecl*, 4> CompareExchangeParams = { IntBufferFamily, IntScalar, IntScalar, IntScalar };
+    std::array<VarConceptDecl*, 3> AtomicParams = { AtomicOperableFamily, IntScalar, IntScalar };
+    std::array<VarConceptDecl*, 4> CompareExchangeParams = { AtomicOperableFamily, IntScalar, IntScalar, IntScalar };
     _intrinstics["ATOMIC_EXCHANGE"] = DeclareTemplateFunction(L"atomic_exchange", AtomicReturnSpec, AtomicParams);
     _intrinstics["ATOMIC_COMPARE_EXCHANGE"] = DeclareTemplateFunction(L"atomic_compare_exchange", AtomicReturnSpec, CompareExchangeParams);
     _intrinstics["ATOMIC_FETCH_ADD"] = DeclareTemplateFunction(L"atomic_fetch_add", AtomicReturnSpec, AtomicParams);
@@ -807,7 +881,7 @@ void AST::DeclareIntrinstics()
     _intrinstics["ATOMIC_FETCH_MIN"] = DeclareTemplateFunction(L"atomic_fetch_min", AtomicReturnSpec, AtomicParams);
     _intrinstics["ATOMIC_FETCH_MAX"] = DeclareTemplateFunction(L"atomic_fetch_max", AtomicReturnSpec, AtomicParams);
 
-    std::array<VarConceptDecl*, 2> TextureReadParams = { TextureFamily, IntScalar };
+    std::array<VarConceptDecl*, 2> TextureReadParams = { TextureFamily, IntVector };
     _intrinstics["TEXTURE_READ"] = DeclareTemplateFunction(L"texture_read", 
         [=](auto pts) { 
             return &dynamic_cast<const TextureTypeDecl*>(pts[0])->element(); 

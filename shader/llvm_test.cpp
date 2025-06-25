@@ -4,6 +4,7 @@
 
 #include "SSL/langs/HLSLGenerator.hpp"
 #include "SSL/AST.hpp"
+#include <fstream>
 
 int main(int argc, const char **argv)
 {
@@ -32,11 +33,22 @@ int main(int argc, const char **argv)
         exit_code = compiler->Run();
         const auto& AST = compiler->GetAST();
 
-        std::wcout << AST.dump() << std::endl;
+        auto ast_text = AST.dump();
+        std::wcout << ast_text << std::endl;
 
         skr::SSL::SourceBuilderNew sb;
         skr::SSL::HLSLGenerator hlsl_generator;
-        std::wcout << hlsl_generator.generate_code(sb, AST) << std::endl;
+        auto code = hlsl_generator.generate_code(sb, AST);
+        std::wcout << code << std::endl;
+
+        // write hlsl to compiled.hlsl
+        std::wofstream hlsl_file("./compiled.hlsl");
+        hlsl_file << code;
+        hlsl_file.close();
+
+        std::wofstream ast_file("./compiled.ast");
+        ast_file << ast_text;
+        ast_file.close();
 
         skr::SSL::ShaderCompiler::Destroy(compiler);
     }

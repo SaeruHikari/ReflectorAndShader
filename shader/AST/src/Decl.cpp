@@ -133,6 +133,18 @@ ValueTypeDecl::ValueTypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> f
 
 }
 
+StructureTypeDecl::StructureTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment, std::span<FieldDecl*> fields, bool is_builtin)
+    : ValueTypeDecl(ast, name, size, alignment, fields, is_builtin)
+{
+
+}
+
+StructureTypeDecl::StructureTypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin)
+    : ValueTypeDecl(ast, name, fields, is_builtin)
+{
+
+}
+
 ScalarTypeDecl::ScalarTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment)
     : ValueTypeDecl(ast, name, size, alignment, {}, true)
 {
@@ -153,8 +165,9 @@ MatrixTypeDecl::MatrixTypeDecl(AST& ast, const TypeDecl* element, uint32_t n, ui
 
 }
 
-ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count)
-    : ValueTypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true)
+ArrayTypeDecl::ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count, ArrayFlags flags)
+    : ValueTypeDecl(ast, std::format(L"array<{}, {}>", element->name(), count), element->size() * count, element->alignment(), {}, true),
+    _element(element), _flags(flags)
 {
 
 }

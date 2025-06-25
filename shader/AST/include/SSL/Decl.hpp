@@ -143,11 +143,25 @@ protected:
     uint32_t _n = 0;
 };
 
-struct ArrayTypeDecl : public ValueTypeDecl
+struct StructureTypeDecl : public ValueTypeDecl
 {
 protected:
     friend struct AST;
-    ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count);
+    StructureTypeDecl(AST& ast, const Name& name, std::span<FieldDecl*> fields, bool is_builtin = false);
+    StructureTypeDecl(AST& ast, const Name& name, uint32_t size, uint32_t alignment = 4, std::span<FieldDecl*> fields = {}, bool is_builtin = true);
+};
+
+struct ArrayTypeDecl : public ValueTypeDecl
+{
+public:
+    ArrayFlags flags() const { return _flags; }
+    const TypeDecl* element() const { return _element; }
+
+protected:
+    friend struct AST;
+    ArrayTypeDecl(AST& ast, const TypeDecl* element, uint32_t count, ArrayFlags flags);
+    const TypeDecl* _element = nullptr;
+    ArrayFlags _flags = ArrayFlags::None;
 };
 
 struct RayQueryTypeDecl : public TypeDecl

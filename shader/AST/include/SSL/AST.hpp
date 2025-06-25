@@ -29,6 +29,7 @@ public:
     AST();
     ~AST();
 
+    AccessExpr* Access(Expr* base, Expr* index);
     BinaryExpr* Binary(BinaryOp op, Expr* left, Expr* right);
     BitwiseCastExpr* BitwiseCast(const TypeDecl* type, Expr* expr);
     BreakStmt* Break();
@@ -36,10 +37,12 @@ public:
     CallExpr* CallFunction(DeclRefExpr* callee, std::span<Expr*> args);
     CaseStmt* Case(Expr* cond, CompoundStmt* body);
     MethodCallExpr* CallMethod(MemberExpr* callee, std::span<Expr*> args);
+    ConditionalExpr* Conditional(Expr* cond, Expr* _then, Expr* _else);
     ConstantExpr* Constant(const IntValue& v);
     ConstantExpr* Constant(const FloatValue& v);
     ConstructExpr* Construct(const TypeDecl* type, std::span<Expr*> args);
     ContinueStmt* Continue();
+    CommentStmt* Comment(const String& text);
     DefaultStmt* Default(CompoundStmt* body);
     FieldExpr* Field(Expr* base, const FieldDecl* field);
     ForStmt* For(Stmt* init, Expr* cond, Stmt* inc, CompoundStmt* body);
@@ -54,16 +57,13 @@ public:
     SwitchStmt* Switch(Expr* cond, std::span<CaseStmt*> cases);
     ThisExpr* This(const TypeDecl* type);
     UnaryExpr* Unary(UnaryOp op, Expr* expr);
-    DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, Expr* initializer = nullptr);
     DeclStmt* Variable(EVariableQualifier qualifier, const TypeDecl* type, const Name& name, Expr* initializer = nullptr);
+    DeclGroupStmt* DeclGroup(std::span<DeclStmt* const> children);
     WhileStmt* While(Expr* cond, CompoundStmt* body);
 
-    TypeDecl* DeclareType(const Name& name, std::span<FieldDecl*> members);
+    TypeDecl* DeclareStructure(const Name& name, std::span<FieldDecl*> members);
     const TypeDecl* DeclareBuiltinType(const Name& name, uint32_t size, uint32_t alignment = 4, std::vector<FieldDecl*> fields = {});
     const ScalarTypeDecl* DeclareScalarType(const Name& name, uint32_t size, uint32_t alignment = 4);
-    const VectorTypeDecl* DeclareVectorType(const TypeDecl* element, uint32_t count, uint32_t alignment);
-    const MatrixTypeDecl* DeclareMatrixType(const TypeDecl* element, uint32_t n, uint32_t alignment);
-    const ArrayTypeDecl* DeclareArrayType(const TypeDecl* element, uint32_t count);
     GlobalVarDecl* DeclareGlobalConstant(const TypeDecl* type, const Name& name, ConstantExpr* initializer = nullptr);
     GlobalVarDecl* DeclareGlobalResource(const TypeDecl* type, const Name& name);
     FieldDecl* DeclareField(const Name& name, const TypeDecl* type);
@@ -81,6 +81,9 @@ public:
     SpecializedFunctionDecl* SpecializeTemplateFunction(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
     SpecializedMethodDecl* SpecializeTemplateMethod(const TemplateCallableDecl* template_decl, std::span<const TypeDecl* const> arg_types, std::span<const EVariableQualifier> arg_qualifiers);
 
+    const VectorTypeDecl* VectorType(const TypeDecl* element, uint32_t count);
+    const MatrixTypeDecl* MatrixType(const TypeDecl* element, uint32_t n);
+    const ArrayTypeDecl* ArrayType(const TypeDecl* element, uint32_t count, ArrayFlags flags);
     const AccelTypeDecl* Accel();
     const RayQueryTypeDecl* RayQuery(RayQueryFlags flags);
     ByteBufferTypeDecl* ByteBuffer(BufferFlags flags);
@@ -136,10 +139,16 @@ private:
     [[noreturn]] void ReportFatalError(const String& message) const;
     void ReservedWordsCheck(const Name& name) const;
 
+    const VectorTypeDecl* DeclareVectorType(const TypeDecl* element, uint32_t count, uint32_t alignment);
+    const MatrixTypeDecl* DeclareMatrixType(const TypeDecl* element, uint32_t n, uint32_t alignment);
+
     std::vector<Decl*> _decls;
     std::vector<Stmt*> _stmts;
     AccelTypeDecl* _accel = nullptr;
     std::map<RayQueryFlags, RayQueryTypeDecl*> _ray_queries;
+    std::map<std::pair<const TypeDecl*, uint32_t>, VectorTypeDecl*> _vecs;
+    std::map<std::pair<const TypeDecl*, std::array<uint32_t, 2>>, MatrixTypeDecl*> _matrices;
+    std::map<std::pair<const TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
     std::map<std::pair<const TypeDecl*, BufferFlags>, BufferTypeDecl*> _buffers;
     std::map<std::pair<const TypeDecl*, TextureFlags>, Texture2DTypeDecl*> _texture2ds;
     std::map<std::pair<const TypeDecl*, TextureFlags>, Texture3DTypeDecl*> _texture3ds;
@@ -149,7 +158,6 @@ private:
     std::vector<MethodDecl*> _methods;
     std::vector<ConstructorDecl*> _ctors;
     std::vector<Attr*> _attrs;
-    std::map<std::pair<const TypeDecl*, uint32_t>, ArrayTypeDecl*> _arrs;
     
     // Template and specialized declarations
     std::map<std::string, TemplateCallableDecl*> _intrinstics;
@@ -163,6 +171,8 @@ public:
     MATRIX_TYPES(Bool);
 
     const TypeDecl* HalfType = nullptr;
+    VEC_TYPES(Half);
+
     const TypeDecl* FloatType = nullptr;
     VEC_TYPES(Float);
     MATRIX_TYPES(Float);

@@ -141,6 +141,15 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         case BinaryOp::MOD_ASSIGN:
             op_name = L" %= ";
             break;
+        case BinaryOp::BIT_OR_ASSIGN:
+            op_name = L" |= ";
+            break;
+        case BinaryOp::BIT_XOR_ASSIGN:
+            op_name = L" ^= ";
+            break;
+        case BinaryOp::SHL_ASSIGN:
+            op_name = L" <<= ";
+            break;
         default:
             assert(false && "Unsupported binary operation");
         }
@@ -171,6 +180,14 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
             }
         });
         sb.append(L"}");
+    }
+    else if (auto condExpr = dynamic_cast<const ConditionalExpr*>(stmt))
+    {
+        visitExpr(sb, condExpr->cond());
+        sb.append(L" ? ");
+        visitExpr(sb, condExpr->then_expr());
+        sb.append(L" : ");
+        visitExpr(sb, condExpr->else_expr());
     }
     else if (auto callExpr = dynamic_cast<const CallExpr*>(stmt))
     {
@@ -454,12 +471,41 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
             visit(sb, decl);
         }
     }
+    else if (auto declGroupStmt = dynamic_cast<const DeclGroupStmt*>(stmt))
+    {
+        for (auto decl : declGroupStmt->children())
+        {
+            visitExpr(sb, dynamic_cast<const DeclStmt*>(decl));
+            sb.append(L";");
+        }
+    }
     else if (auto whileStmt = dynamic_cast<const WhileStmt*>(stmt))
     {
         sb.append(L"while (");
         visitExpr(sb, whileStmt->cond());
         sb.append(L") ");
         visitExpr(sb, whileStmt->body());
+    }
+    else if (auto access = dynamic_cast<const AccessExpr*>(stmt))
+    {
+        auto to_access = dynamic_cast<const Expr*>(access->children()[0]);
+        auto index = dynamic_cast<const Expr*>(access->children()[1]);
+        auto type_to_access = to_access->type();
+
+        if (auto AsArray = dynamic_cast<const ArrayTypeDecl*>(type_to_access))
+        {
+            visitExpr(sb, to_access);
+            sb.append(L".data[");
+            visitExpr(sb, index);
+            sb.append(L"]");
+        }
+        else
+        {
+            visitExpr(sb, to_access);
+            sb.append(L"[");
+            visitExpr(sb, index);
+            sb.append(L"]");
+        }
     }
     else if (auto swizzle = dynamic_cast<const SwizzleExpr*>(stmt))
     {
@@ -474,6 +520,10 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     else if (auto thisExpr = dynamic_cast<const ThisExpr*>(stmt))
     {
         sb.append(L"/*this->*/");
+    }
+    else if (auto commentStmt = dynamic_cast<const CommentStmt*>(stmt))
+    {
+        sb.append(L"// " + commentStmt->text());
     }
     else
     {

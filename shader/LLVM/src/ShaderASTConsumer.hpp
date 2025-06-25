@@ -54,6 +54,7 @@ protected:
     std::map<const clang::BuiltinType::Kind, skr::SSL::TypeDecl*> _builtin_types;
     std::map<const clang::VarDecl*, skr::SSL::VarDecl*> _vars;
     std::map<const clang::FunctionDecl*, skr::SSL::FunctionDecl*> _funcs;
+    std::map<const clang::EnumConstantDecl*, skr::SSL::GlobalVarDecl*> _enum_constants;
     AST& AST;
 
 protected:

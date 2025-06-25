@@ -47,6 +47,13 @@ protected:
     Decl* _decl = nullptr;
 };
 
+struct DeclGroupStmt : Stmt
+{
+protected:
+    friend struct AST;
+    DeclGroupStmt(AST& ast, std::span<DeclStmt* const> children);
+};
+
 struct CompoundStmt final : Stmt
 {
 public:
@@ -114,6 +121,17 @@ struct ContinueStmt final : Stmt
 private:
     friend struct AST;
     ContinueStmt(AST& ast);
+};
+
+struct CommentStmt final : Stmt
+{
+public:
+    const String& text() const { return _text; }
+
+private:
+    friend struct AST;
+    CommentStmt(AST& ast, const String& text);
+    String _text;
 };
 
 struct DefaultStmt final : Stmt

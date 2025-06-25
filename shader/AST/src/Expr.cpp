@@ -4,6 +4,25 @@
 
 namespace skr::SSL {
 
+inline static const skr::SSL::TypeDecl* GetElementType(const TypeDecl* type)
+{
+    if (auto array_type = dynamic_cast<const ArrayTypeDecl*>(type))
+    {
+        return array_type->element();
+    }
+    else if (auto vector_type = dynamic_cast<const VectorTypeDecl*>(type))
+    {
+        return vector_type->element();
+    }
+    else if (auto matrix_type = dynamic_cast<const MatrixTypeDecl*>(type))
+    {
+        const auto n = matrix_type->columns();
+        const auto element = matrix_type->element();
+        return const_cast<AST&>(type->ast()).VectorType(element, n);
+    }
+    return nullptr;
+}
+
 Expr::Expr(AST& ast, const TypeDecl* type) 
     : ValueStmt(ast), _type(type) 
 {
@@ -15,6 +34,13 @@ BinaryExpr::BinaryExpr(AST& ast, Expr* left, Expr* right, BinaryOp op)
 {
     add_child(left);
     add_child(right);
+}
+
+AccessExpr::AccessExpr(AST& ast, Expr* base, Expr* index)
+    : Expr(ast, GetElementType(base->type()))
+{
+    add_child(base);
+    add_child(index);
 }
 
 CastExpr::CastExpr(AST& ast, const TypeDecl* type, Expr* expr) 
@@ -35,6 +61,14 @@ CallExpr::CallExpr(AST& ast, DeclRefExpr* callee, std::span<Expr*> args)
     add_child(callee);
     for (auto arg : _args)
         add_child(arg);
+}
+
+ConditionalExpr::ConditionalExpr(AST& ast, Expr* cond, Expr* _then, Expr* _else) 
+    : Expr(ast, _then->type()), _cond(cond), _then(_then), _else(_else) 
+{
+    add_child(cond);
+    add_child(_then);
+    add_child(_else);
 }
 
 inline static const TypeDecl* GetIntType(const AST& ast, const IntValue& v)

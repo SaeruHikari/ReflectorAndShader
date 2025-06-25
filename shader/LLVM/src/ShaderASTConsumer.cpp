@@ -128,6 +128,9 @@ inline static SSL::BinaryOp TranslateBinaryOp(clang::BinaryOperatorKind op)
         case clang::BO_MulAssign: return SSL::BinaryOp::MUL_ASSIGN;
         case clang::BO_DivAssign: return SSL::BinaryOp::DIV_ASSIGN;
         case clang::BO_RemAssign: return SSL::BinaryOp::MOD_ASSIGN;
+        case clang::BO_OrAssign: return SSL::BinaryOp::BIT_OR_ASSIGN;
+        case clang::BO_XorAssign: return SSL::BinaryOp::BIT_XOR_ASSIGN;
+        case clang::BO_ShlAssign: return SSL::BinaryOp::SHL_ASSIGN;
 
         default:
             llvm::report_fatal_error("Unsupported binary operator");
@@ -258,7 +261,8 @@ SSL::TypeDecl* ASTConsumer::TranslateEnumDecl(clang::EnumDecl* enumDecl)
     {
         const auto I = E->getInitVal().getLimitedValue();
         auto VarName = (EnumName + "__" + E->getName()).str();
-        AST.DeclareGlobalConstant(UnderlyingType, ToText(VarName), AST.Constant(IntValue(I)));
+        auto _constant = AST.DeclareGlobalConstant(UnderlyingType, ToText(VarName), AST.Constant(IntValue(I)));
+        _enum_constants.emplace(E, _constant);
     }
     return UnderlyingType;
 }
@@ -285,16 +289,13 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
     const auto* TemplateItSelf = recordDecl->getDescribedTemplate();
     if (auto Existed = getType(ThisType->getCanonicalTypeInternal())) return Existed; // already processed
     if (recordDecl->isUnion()) return nullptr; // unions are not supported
-    if (!recordDecl->isCompleteDefinition()) return nullptr; // skip forward declares
-    if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
-    if (TSD && TSD_Partial) return nullptr; // skip no-def template specs
-    if (!TSD && TemplateItSelf) return nullptr; // skip template definitions
     if (IsIgnore(recordDecl)) return nullptr; // skip ignored types
-
-    if (auto BuiltinAttr = IsBuiltin(recordDecl))
+    if (TSD && TSD_Partial) return nullptr; // skip no-def template specs
+    
+    if (auto BuiltinAttr = IsBuiltin(TSD ? clang::dyn_cast<clang::Decl>(TSD->getSpecializedTemplate()->getTemplatedDecl()) : recordDecl))
     {
         auto What = GetArgumentAt<clang::StringRef>(BuiltinAttr, 1);
-        if (What == "vec")
+        if (TSD && What == "vec")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType().getCanonicalType();
@@ -325,24 +326,30 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
                 const skr::SSL::TypeDecl* Types[] = { AST.Bool2Type, AST.Bool3Type, AST.Bool4Type };
                 addType(ThisQualType, Types[N - 2]);
             }
+            else if (getType(ET) == AST.HalfType)
+            {
+                const skr::SSL::TypeDecl* Types[] = { AST.Half2Type, AST.Half3Type, AST.Half4Type };
+                addType(ThisQualType, Types[N - 2]);
+            }
             else
             {
                 ReportFatalError(recordDecl, "Unsupported vec type: {} for vec size: {}", std::string(ET->getTypeClassName()), std::to_string(N));
             }
         }
-        else if (What == "array")
+        else if (TSD && What == "array")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType();
             const auto N = Arguments.get(1).getAsIntegral().getLimitedValue();
-            
+            const auto ArrayFlags = Arguments.get(2).getAsIntegral().getLimitedValue();
+
             if (getType(ET) == nullptr)
                 TranslateType(ET->getCanonicalTypeInternal());
 
-            auto ArrayType = AST.DeclareArrayType(getType(ET), uint32_t(N));
+            auto ArrayType = AST.ArrayType(getType(ET), uint32_t(N), (SSL::ArrayFlags)ArrayFlags);
             addType(ThisQualType, ArrayType);
         }
-        else if (What == "matrix")
+        else if (TSD && What == "matrix")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto N = Arguments.get(0).getAsIntegral().getLimitedValue();
@@ -353,7 +360,7 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         {
             addType(ThisQualType, AST.HalfType);
         }
-        else if (What == "buffer")
+        else if (TSD && What == "buffer")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType();
@@ -368,7 +375,7 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
             else
                 addType(ThisQualType, AST.StructuredBuffer(getType(ET), (SSL::BufferFlags)BufferFlag));
         }
-        else if (What == "image" || What == "volume")
+        else if ((TSD && What == "image") || (TSD && What == "volume"))
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType();
@@ -383,7 +390,7 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         {
             addType(ThisQualType, AST.Accel());
         }
-        else if (What == "ray_query")
+        else if (TSD && What == "ray_query")
         {
             const auto& Arguments = TSD->getTemplateArgs();
             const auto Flags = Arguments.get(0).getAsIntegral().getLimitedValue();
@@ -394,19 +401,20 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         {
             addType(ThisQualType, AST.DeclareBuiltinType(L"bindless_array", 0));
         }
-        else
-        {
-            ReportFatalError("Unsupported builtin type: {} for type: {}", std::string(What), std::string(recordDecl->getName()));
-        }
+
     } 
-    else
+    else 
     {
+        if (!recordDecl->isCompleteDefinition()) return nullptr; // skip forward declares
+        if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
+        if (!TSD && TemplateItSelf) return nullptr; // skip template definitions
+
         auto TypeName = TSD ? std::format("{}_{}", TSD->getQualifiedNameAsString(), (intptr_t)TSD) : recordDecl->getQualifiedNameAsString();
         if (getType(ThisQualType))
             ReportFatalError(recordDecl, "Duplicate type declaration: {}", TypeName);
 
         std::replace(TypeName.begin(), TypeName.end(), ':', '_');
-        auto NewType = AST.DeclareType(ToText(TypeName), {});
+        auto NewType = AST.DeclareStructure(ToText(TypeName), {});
         if (NewType == nullptr)
             ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
 
@@ -484,7 +492,15 @@ bool ASTConsumer::VisitVarDecl(clang::VarDecl* x)
 
     // if (!LanguageRule_BanDoubleFieldsAndVariables(x, x->getType()))
     //    ReportFatalError(x, "Double variables are not allowed");
-
+    if (x->getType()->isReferenceType() && !x->hasExternalStorage())
+    {
+        auto AsParam = llvm::dyn_cast<clang::ParmVarDecl>(x);
+        if (!AsParam)
+        {
+            ReportFatalError(x, "Reference type variables are not allowed");
+        }
+    }
+    
     if (x->hasExternalStorage())
     {
         auto ShaderResource = AST.DeclareGlobalResource(getType(x->getType()), ToText(x->getName()));
@@ -540,17 +556,24 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
             isConst ? SSL::EVariableQualifier::Const : 
             (isRef ? SSL::EVariableQualifier::Inout : SSL::EVariableQualifier::None);
 
-        auto _param = params.emplace_back(AST.DeclareParam(
-            qualifier,
-            getType(ParamQualType),
-            ToText(param->getName()))
-        );
-        addVar(param, _param);
-
-        if (auto BuiltinInfo = IsBuiltin(param))
+        if (auto _paramType = getType(ParamQualType))
         {
-            auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
-            _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+            auto _param = params.emplace_back(AST.DeclareParam(
+                qualifier,
+                _paramType,
+                ToText(param->getName()))
+            );
+            addVar(param, _param);
+
+            if (auto BuiltinInfo = IsBuiltin(param))
+            {
+                auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
+                _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+            }
+        }
+        else
+        {
+            ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
         }
     }
 
@@ -643,9 +666,13 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             if (ifConstVar->getExtValue() != 0) {
                 if (cxxBranch->getThen())
                     return TranslateStmt(cxxBranch->getThen());
+                else
+                    return AST.Comment(L"c++: here is an optimized if constexpr false branch");
             } else {
                 if (cxxBranch->getElse())
                     return TranslateStmt(cxxBranch->getElse());
+                else
+                    return AST.Comment(L"c++: here is an optimized if constexpr true branch");
             }
         } else {
             auto cxxThen = cxxBranch->getThen();
@@ -713,6 +740,10 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             stmts.emplace_back(TranslateStmt(sub));
         return AST.Block(std::move(stmts));
     }
+    else if (auto substNonType = llvm::dyn_cast<clang::SubstNonTypeTemplateParmExpr>(x))
+    {
+        return TranslateStmt(substNonType->getReplacement());
+    }
     else if (auto cxxExprWithCleanup = llvm::dyn_cast<clang::ExprWithCleanups>(x))
     {
         return TranslateStmt(cxxExprWithCleanup->getSubExpr());
@@ -721,7 +752,10 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     else if (auto cxxDecl = llvm::dyn_cast<clang::DeclStmt>(x)) 
     {
         const DeclGroupRef declGroup = cxxDecl->getDeclGroup();
-        for (auto decl : declGroup) {
+        std::vector<SSL::DeclStmt*> var_decls;
+        std::vector<SSL::CommentStmt*> comments;
+        for (auto decl : declGroup) 
+        {
             if (!decl) continue;
 
             if (auto *varDecl = dyn_cast<clang::VarDecl>(decl)) 
@@ -739,20 +773,32 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
                     auto _name = SSL::String(varDecl->getName().begin(), varDecl->getName().end());
                     auto v = AST.Variable(isConst ? SSL::EVariableQualifier::Const : SSL::EVariableQualifier::None, SSLType, _name, _init);
                     addVar(varDecl, (SSL::VarDecl*)v->decl());
-                    return v; 
+                    var_decls.emplace_back(v); 
                 } 
                 else
                     ReportFatalError("VarDecl with unfound type: [{}]", Ty.getAsString());
             } else if (auto aliasDecl = dyn_cast<clang::TypeAliasDecl>(decl)) {// ignore
+                comments.emplace_back(AST.Comment(L"c++: this line is a typedef"));
             } else if (auto staticAssertDecl = dyn_cast<clang::StaticAssertDecl>(decl)) {// ignore
+                comments.emplace_back(AST.Comment(L"c++: this line is a static_assert"));
             } else {
                 ReportFatalError(x, "unsupported decl stmt: {}", cxxDecl->getStmtClassName());
             }
         }
+        if (var_decls.size() == 1)
+            return var_decls[0]; // single variable declaration, return it directly
+        else if (var_decls.size() > 1)
+            return AST.DeclGroup(var_decls);
+        else if (comments.size() > 0)
+            return comments[0];
+        else
+            return AST.Comment(L"c++: this line is a decl stmt with no variables");
     }
     else if (auto cxxReturn = llvm::dyn_cast<clang::ReturnStmt>(x)) 
     {
-        return AST.Return(TranslateStmt<SSL::Expr>(cxxReturn->getRetValue()));
+        if(auto retExpr = cxxReturn->getRetValue())
+            return AST.Return(TranslateStmt<SSL::Expr>(retExpr));
+        return AST.Return(nullptr);
     }
     ///////////////////////////////////// EXPRS ///////////////////////////////////////////
     else if (auto cxxDeclRef = llvm::dyn_cast<clang::DeclRefExpr>(x)) 
@@ -762,7 +808,7 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
         {
             return AST.Ref(getFunc(Function));
         }
-        else if (auto Var = llvm::cast<clang::VarDecl>(_cxxDecl))
+        else if (auto Var = llvm::dyn_cast<clang::VarDecl>(_cxxDecl))
         {
             if (Var->isConstexpr())
             {
@@ -793,7 +839,17 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
                 return AST.Ref(getVar(Var));
             }
         }
+        else if (auto EnumConstant = llvm::dyn_cast<clang::EnumConstantDecl>(_cxxDecl))
+        {
+            return _enum_constants[EnumConstant]->ref();
+        }
     }
+    else if (auto cxxConditional = llvm::dyn_cast<clang::ConditionalOperator>(x))
+    {
+        return AST.Conditional(TranslateStmt<SSL::Expr>(cxxConditional->getCond()),
+                               TranslateStmt<SSL::Expr>(cxxConditional->getTrueExpr()),
+                               TranslateStmt<SSL::Expr>(cxxConditional->getFalseExpr()));
+    } 
     else if (auto cxxLambda = llvm::dyn_cast<LambdaExpr>(x)) 
     {
         ReportFatalError("Lambda expressions are not supported in skr-shader.");
@@ -802,6 +858,10 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     else if (auto cxxParenExpr = llvm::dyn_cast<clang::ParenExpr>(x))
     {
         return TranslateStmt<SSL::Expr>(cxxParenExpr->getSubExpr());
+    }
+    else if (auto cxxDefaultArg = llvm::dyn_cast<clang::CXXDefaultArgExpr>(x))
+    {
+        return TranslateStmt(cxxDefaultArg->getExpr());
     }
     else if (auto cxxExplicitCast = llvm::dyn_cast<clang::ExplicitCastExpr>(x))
     {
@@ -882,7 +942,16 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
         }
         else if (IsAccess(funcDecl))
         {
-            ReportFatalError(x, "Array access operator is not supported yet: {}", cxxCall->getStmtClassName());
+            if (auto AsMethod = llvm::dyn_cast<clang::CXXMemberCallExpr>(cxxCall))
+            {
+                auto caller = llvm::dyn_cast<clang::MemberExpr>(AsMethod->getCallee())->getBase();
+                return AST.Access(TranslateStmt<SSL::Expr>(caller), TranslateStmt<SSL::Expr>(AsMethod->getArg(0)));
+            }
+            else if (auto AsOperator = llvm::dyn_cast<clang::CXXOperatorCallExpr>(cxxCall))
+            {
+                return AST.Access(TranslateStmt<SSL::Expr>(AsOperator->getArg(0)), TranslateStmt<SSL::Expr>(AsOperator->getArg(1)));
+            }
+            ReportFatalError(x, "Unsupported access operator on function declaration");
         }
         else if (auto AsCallOp = IsCallOp(funcDecl))
         {
@@ -1034,6 +1103,24 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     {
         return TranslateStmt(InitExpr->getExpr());
     }
+    else if (auto CONSTANT = llvm::dyn_cast<clang::ConstantExpr>(x))
+    {
+        auto APV = CONSTANT->getAPValueResult();
+        switch (APV.getKind())
+        {
+            case clang::APValue::ValueKind::Int:
+                return AST.Constant(SSL::IntValue(APV.getInt().getLimitedValue()));
+            case clang::APValue::ValueKind::Float:
+                return AST.Constant(SSL::FloatValue(APV.getFloat().convertToDouble()));
+            case clang::APValue::ValueKind::Struct:
+            default:
+                ReportFatalError(x, "ConstantExpr with struct value is not supported: {}", CONSTANT->getStmtClassName());
+        }
+    }
+    else if (auto BOOL = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(x))
+    {
+        return AST.Constant(SSL::IntValue(BOOL->getValue()));
+    }
     else if (auto INT = llvm::dyn_cast<clang::IntegerLiteral>(x))
     {
         return AST.Constant(SSL::IntValue(INT->getValue().getLimitedValue()));
@@ -1073,7 +1160,10 @@ skr::SSL::VarDecl* ASTConsumer::getVar(const clang::VarDecl* var) const
 
 bool ASTConsumer::addType(clang::QualType type, skr::SSL::TypeDecl* decl)
 {
-    type = type.getNonReferenceType().getCanonicalType();
+    type = type.getNonReferenceType()
+               .getUnqualifiedType()
+               .getDesugaredType(*pASTContext)
+               .getCanonicalType();
 
     if (auto bt = type->getAs<clang::BuiltinType>())
     {
@@ -1109,7 +1199,10 @@ bool ASTConsumer::addType(clang::QualType type, const skr::SSL::TypeDecl* decl)
 
 skr::SSL::TypeDecl* ASTConsumer::getType(clang::QualType type) const
 {
-    type = type.getNonReferenceType().getCanonicalType();
+    type = type.getNonReferenceType()
+        .getUnqualifiedType()
+        .getDesugaredType(*pASTContext)
+        .getCanonicalType();
 
     if (auto bt = type->getAs<clang::BuiltinType>())
     {
@@ -1122,6 +1215,7 @@ skr::SSL::TypeDecl* ASTConsumer::getType(clang::QualType type) const
         if (_tag_types.find(tag) != _tag_types.end())
             return _tag_types.at(tag);
     }
+
     return nullptr;
 }
 
