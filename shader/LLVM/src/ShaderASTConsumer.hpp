@@ -36,6 +36,7 @@ protected:
     SSL::TypeDecl* TranslateRecordDecl(const clang::RecordDecl* x);
     SSL::TypeDecl* TranslateLambda(const clang::LambdaExpr* x);
     SSL::TypeDecl* TranslateEnumDecl(const clang::EnumDecl* x);
+    SSL::ParamVarDecl* TranslateParam(const clang::ParmVarDecl* x);
     SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
 
     Stmt* TranslateStmt(const clang::Stmt *x);

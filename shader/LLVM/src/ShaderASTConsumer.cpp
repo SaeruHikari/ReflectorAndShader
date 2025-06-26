@@ -441,7 +441,6 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(const clang::RecordDecl* recordD
         if (!TSD && TemplateItSelf) return nullptr; // skip template definitions
 
         auto TypeName = TSD ? std::format("{}_{}", TSD->getQualifiedNameAsString(), next_template_spec_id++) :
-                                recordDecl->isLambda() ?  "lambda_" + std::to_string(next_lambda_id++) : 
                                 recordDecl->getQualifiedNameAsString();
         if (getType(ThisQualType))
             ReportFatalError(recordDecl, "Duplicate type declaration: {}", TypeName);
@@ -451,31 +450,28 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(const clang::RecordDecl* recordD
         if (NewType == nullptr)
             ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
 
-        if (!recordDecl->isLambda())
+        for (auto field : recordDecl->fields())
         {
-            for (auto field : recordDecl->fields())
+            if (IsDump(field)) 
+                field->dump();
+
+            auto fieldType = field->getType();
+            if (field->getType()->isReferenceType() || field->getType()->isPointerType())
             {
-                if (IsDump(field)) 
-                    field->dump();
-
-                auto fieldType = field->getType();
-                if (field->getType()->isReferenceType() || field->getType()->isPointerType())
-                {
-                    ReportFatalError(field, "Field type cannot be reference or pointer!");
-                }
-
-                auto _fieldType = getType(fieldType);
-                if (!_fieldType)
-                {
-                    TranslateType(fieldType);
-                    _fieldType = getType(fieldType);
-                }
-
-                if (!_fieldType)
-                    ReportFatalError(recordDecl, "Unknown field type: {} for field: {}", std::string(fieldType->getTypeClassName()), field->getName().str());
-
-                NewType->add_field(AST.DeclareField(ToText(field->getName()), _fieldType));
+                ReportFatalError(field, "Field type cannot be reference or pointer!");
             }
+
+            auto _fieldType = getType(fieldType);
+            if (!_fieldType)
+            {
+                TranslateType(fieldType);
+                _fieldType = getType(fieldType);
+            }
+
+            if (!_fieldType)
+                ReportFatalError(recordDecl, "Unknown field type: {} for field: {}", std::string(fieldType->getTypeClassName()), field->getName().str());
+
+            NewType->add_field(AST.DeclareField(ToText(field->getName()), _fieldType));
         }
 
         addType(ThisQualType, NewType);
@@ -515,16 +511,32 @@ SSL::TypeDecl* ASTConsumer::TranslateLambda(const clang::LambdaExpr* x)
     if (_lambdas.contains(x))
         return _lambdas[x];
 
+    std::vector<SSL::ParamVarDecl*> _params;
+    auto lambdaMethod = x->getCallOperator();
+    auto addParam = [&](SSL::TypeDecl* _type, const SSL::String& name, bool byref) 
+    {
+        _params.emplace_back(AST.DeclareParam(
+            byref ? EVariableQualifier::Inout : EVariableQualifier::None, _type, name
+        ));
+    };
+    
+    for (auto param : lambdaMethod->parameters())
+    {
+        _params.emplace_back(TranslateParam(param));
+    }
+
     // 1.自己的 method call 里，按 capture list 里 capture 的信息，生成参数列表并记录下来
-    std::vector<SSL::ParamVarDecl*> args;
     for (auto capture : x->captures())
     {
         bool isThis = capture.capturesThis();
         if (!isThis)
         {
             // 1.1  = 生成传值，& 生成 inout
-            auto var = capture.getCapturedVar();
-
+            addParam(
+                getType(capture.getCapturedVar()->getType()), 
+                ToText(capture.getCapturedVar()->getName()), 
+                capture.getCaptureKind() == clang::LambdaCaptureKind::LCK_ByRef
+            );
         }
         else
         {
@@ -532,15 +544,25 @@ SSL::TypeDecl* ASTConsumer::TranslateLambda(const clang::LambdaExpr* x)
             LambdaThisAnalyzer analyzer;
             analyzer.TraverseStmt(x->getBody());
             for (auto field : analyzer.accessed_fields)
-                field->dump();
+            {
+                addParam(
+                    getType(field->getType()),
+                    ToText(field->getName()),
+                    true
+                );
+            }
         }
     }
+    auto returnType = lambdaMethod->getReturnType();
+    auto lambdaWrapper = AST.DeclareStructure(std::format(L"lambda_{}", next_lambda_id++), {});
+    auto lambdaBody = TranslateStmt<SSL::CompoundStmt>(x->getBody());
+    auto newLambda = AST.DeclareMethod(lambdaWrapper, L"operator_call", getType(returnType), _params, lambdaBody);
+    lambdaWrapper->add_method(newLambda);
 
-    auto newLambda = TranslateRecordDecl(x->getLambdaClass());
-    if (newLambda == nullptr)
-        ReportFatalError(x, "Failed to translate lambda: {}", x->getSourceRange().getBegin().printToString(pASTContext->getSourceManager()));
-    _lambdas[x] = newLambda;
-    return newLambda;
+    addFunc(lambdaMethod, newLambda);
+    addType(x->getLambdaClass()->getTypeForDecl()->getCanonicalTypeInternal(), lambdaWrapper);
+    _lambdas[x] = lambdaWrapper;
+    return lambdaWrapper;
 }
 
 bool ASTConsumer::VisitFunctionDecl(const clang::FunctionDecl* x)
@@ -632,6 +654,47 @@ SSL::TypeDecl* ASTConsumer::TranslateType(clang::QualType type)
     return getType(type);
 }
 
+SSL::ParamVarDecl* ASTConsumer::TranslateParam(const clang::ParmVarDecl* param)
+{
+    auto iter = _vars.find(param);
+    if (iter != _vars.end()) 
+        return (SSL::ParamVarDecl*)iter->second; // already processed
+
+    const bool isRef = param->getType()->isReferenceType() && !param->getType()->isRValueReferenceType();
+    const auto ParamQualType = param->getType().getNonReferenceType();
+    const bool isConst = ParamQualType.isConstQualified();
+    
+    const auto qualifier = 
+        (isRef && isConst) ? SSL::EVariableQualifier::Const : 
+        (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
+        SSL::EVariableQualifier::None;
+
+    if (auto _paramType = getType(ParamQualType))
+    {
+        auto paramName = param->getName().str();
+        if (paramName.empty())
+            paramName = std::format("param_{}", param->getFunctionScopeIndex());
+        auto _param = AST.DeclareParam(
+            qualifier,
+            _paramType,
+            ToText(paramName)
+        );
+        addVar(param, _param);
+
+        if (auto BuiltinInfo = IsBuiltin(param))
+        {
+            auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
+            _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+        }
+        return _param;
+    }
+    else
+    {
+        ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
+    }
+    return nullptr;
+}
+
 SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, llvm::StringRef override_name) 
 {
     if (IsDump(x))
@@ -655,50 +718,7 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
     params.reserve(x->getNumParams());
     for (const auto& param : x->parameters())
     {
-        const bool isRef = param->getType()->isReferenceType() && !param->getType()->isRValueReferenceType();
-        const auto ParamQualType = param->getType().getNonReferenceType();
-        const bool isConst = ParamQualType.isConstQualified();
-        
-        const auto qualifier = 
-            (isRef && isConst) ? SSL::EVariableQualifier::Const : 
-            (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
-            SSL::EVariableQualifier::None;
-
-        if (auto _paramType = getType(ParamQualType))
-        {
-            auto paramName = param->getName().str();
-            if (paramName.empty())
-                paramName = std::format("param_{}", param->getFunctionScopeIndex());
-            auto _param = params.emplace_back(AST.DeclareParam(
-                qualifier,
-                _paramType,
-                ToText(paramName))
-            );
-            addVar(param, _param);
-
-            if (auto AsLambda = ParamQualType->getAsRecordDecl();AsLambda && AsLambda->isLambda())
-            {
-                for (auto lambdaCapture : AsLambda->fields())
-                {
-                    auto captureType = lambdaCapture->getType();
-                    params.emplace_back(AST.DeclareParam(
-                        captureType->isReferenceType() ? EVariableQualifier::Inout : EVariableQualifier::Const,
-                        getType(lambdaCapture->getType()),
-                        std::format(L"cap_{}_{}", ToText(lambdaCapture->getName()), params.size()))
-                    );
-                }
-            }
-
-            if (auto BuiltinInfo = IsBuiltin(param))
-            {
-                auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
-                _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
-            }
-        }
-        else
-        {
-            ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
-        }
+        params.emplace_back(TranslateParam(param));
     }
     SSL::FunctionDecl* F = nullptr;
     auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x);
@@ -1097,29 +1117,29 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             if (auto Intrin = AST.FindIntrinsic(name.str().c_str()))
             {
                 const bool IsMethod = llvm::dyn_cast<clang::CXXMemberCallExpr>(cxxCall);
-                std::vector<const TypeDecl*> arg_types;
-                std::vector<EVariableQualifier> arg_qualifiers;
-                std::vector<SSL::Expr*> args;
-                args.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
-                arg_types.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
-                arg_qualifiers.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                std::vector<const TypeDecl*> _arg_types;
+                std::vector<EVariableQualifier> _arg_qualifiers;
+                std::vector<SSL::Expr*> _args;
+                _args.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                _arg_types.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
+                _arg_qualifiers.reserve(cxxCall->getNumArgs() + (IsMethod ? 1 : 0));
                 if (IsMethod)
                 {
                     auto _clangMember = llvm::dyn_cast<clang::MemberExpr>(llvm::dyn_cast<clang::CXXMemberCallExpr>(x)->getCallee());
                     auto _caller = TranslateStmt<SSL::DeclRefExpr>(_clangMember->getBase());
-                    arg_types.emplace_back(_caller->type());
-                    arg_qualifiers.emplace_back(EVariableQualifier::Inout);
-                    args.emplace_back(_caller);
+                    _arg_types.emplace_back(_caller->type());
+                    _arg_qualifiers.emplace_back(EVariableQualifier::Inout);
+                    _args.emplace_back(_caller);
                 }
                 for (size_t i = 0; i < cxxCall->getNumArgs(); ++i)
                 {
-                    arg_types.emplace_back(getType(cxxCall->getArg(i)->getType()));
-                    arg_qualifiers.emplace_back(EVariableQualifier::None);
-                    args.emplace_back(TranslateStmt<SSL::Expr>(cxxCall->getArg(i)));
+                    _arg_types.emplace_back(getType(cxxCall->getArg(i)->getType()));
+                    _arg_qualifiers.emplace_back(EVariableQualifier::None);
+                    _args.emplace_back(TranslateStmt<SSL::Expr>(cxxCall->getArg(i)));
                 }
                 // TODO: CACHE THIS
-                if (auto Spec = AST.SpecializeTemplateFunction(Intrin, arg_types, arg_qualifiers))
-                    return AST.CallFunction(Spec->ref(), args);
+                if (auto Spec = AST.SpecializeTemplateFunction(Intrin, _arg_types, _arg_qualifiers))
+                    return AST.CallFunction(Spec->ref(), _args);
                 else
                     ReportFatalError(x, "Failed to specialize template function: {}", name.str());
             }
@@ -1129,11 +1149,11 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
         else if (auto AsMethod = clang::dyn_cast<clang::CXXMethodDecl>(funcDecl); AsMethod && !AsMethod->isStatic())
         {            
             SSL::MemberExpr* _callee = nullptr;
-            std::vector<SSL::Expr*> args;
-            args.reserve(cxxCall->getNumArgs());
+            std::vector<SSL::Expr*> _args;
+            _args.reserve(cxxCall->getNumArgs());
             for (auto arg : cxxCall->arguments())
             {
-                args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+                _args.emplace_back(TranslateStmt<SSL::Expr>(arg));
             }
 
             if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
@@ -1147,12 +1167,12 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             {
                 auto _caller = TranslateStmt<SSL::DeclRefExpr>(cxxOperatorCall->getArg(0));
                 _callee = AST.Method(_caller, (SSL::MethodDecl*)getFunc(AsMethod));
-                args.erase(args.begin()); // remove first arg, it is the caller
+                _args.erase(_args.begin()); // remove first arg, it is the caller
             }
             else
                 ReportFatalError(x, "Unsupported method call expression: {}", x->getStmtClassName());
 
-            return AST.CallMethod(_callee, std::span<SSL::Expr*>(args));
+            return AST.CallMethod(_callee, std::span<SSL::Expr*>(_args));
         }
         else
         {
@@ -1296,7 +1316,7 @@ bool ASTConsumer::addVar(const clang::VarDecl* var, skr::SSL::VarDecl* _var)
 {
     if (!_vars.emplace(var, _var).second)
     {
-        ReportFatalError("Duplicate variable declaration: " + std::string(var->getName()));
+        ReportFatalError(var, "Duplicate variable declaration: {}", std::string(var->getName()));
         return false;
     }
     return true;

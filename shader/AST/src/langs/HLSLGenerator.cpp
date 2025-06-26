@@ -659,7 +659,6 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
                     break;
                 }
                 String content = prefix + param->type().name() + L" " + param->name();
-               
                 if (StageEntry)
                 {
                     for (auto attr : param->attrs())
