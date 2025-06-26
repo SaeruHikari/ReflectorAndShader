@@ -451,6 +451,33 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(const clang::RecordDecl* recordD
         if (NewType == nullptr)
             ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
 
+        if (!recordDecl->isLambda())
+        {
+            for (auto field : recordDecl->fields())
+            {
+                if (IsDump(field)) 
+                    field->dump();
+
+                auto fieldType = field->getType();
+                if (field->getType()->isReferenceType() || field->getType()->isPointerType())
+                {
+                    ReportFatalError(field, "Field type cannot be reference or pointer!");
+                }
+
+                auto _fieldType = getType(fieldType);
+                if (!_fieldType)
+                {
+                    TranslateType(fieldType);
+                    _fieldType = getType(fieldType);
+                }
+
+                if (!_fieldType)
+                    ReportFatalError(recordDecl, "Unknown field type: {} for field: {}", std::string(fieldType->getTypeClassName()), field->getName().str());
+
+                NewType->add_field(AST.DeclareField(ToText(field->getName()), _fieldType));
+            }
+        }
+
         addType(ThisQualType, NewType);
     }
     return getType(ThisQualType);
