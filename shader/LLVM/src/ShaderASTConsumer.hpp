@@ -34,6 +34,7 @@ public:
 protected:
     SSL::TypeDecl* TranslateType(clang::QualType type);
     SSL::TypeDecl* TranslateRecordDecl(const clang::RecordDecl* x);
+    SSL::TypeDecl* TranslateLambda(const clang::LambdaExpr* x);
     SSL::TypeDecl* TranslateEnumDecl(const clang::EnumDecl* x);
     SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
 
@@ -55,6 +56,7 @@ protected:
     std::map<const clang::VarDecl*, skr::SSL::VarDecl*> _vars;
     std::map<const clang::FunctionDecl*, skr::SSL::FunctionDecl*> _funcs;
     std::map<const clang::EnumConstantDecl*, skr::SSL::GlobalVarDecl*> _enum_constants;
+    std::map<const clang::LambdaExpr*, skr::SSL::TypeDecl*> _lambdas;
     uint64_t next_lambda_id = 0;
     uint64_t next_template_spec_id = 0;
     AST& AST;

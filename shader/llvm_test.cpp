@@ -34,12 +34,12 @@ int main(int argc, const char **argv)
         const auto& AST = compiler->GetAST();
 
         auto ast_text = AST.dump();
-        std::wcout << ast_text << std::endl;
+        // std::wcout << ast_text << std::endl;
 
         skr::SSL::SourceBuilderNew sb;
         skr::SSL::HLSLGenerator hlsl_generator;
         auto code = hlsl_generator.generate_code(sb, AST);
-        std::wcout << code << std::endl;
+        // std::wcout << code << std::endl;
 
         // write hlsl to compiled.hlsl
         std::wofstream hlsl_file("./compiled.hlsl");

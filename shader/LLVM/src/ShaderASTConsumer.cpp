@@ -483,6 +483,66 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(const clang::RecordDecl* recordD
     return getType(ThisQualType);
 }
 
+class LambdaThisAnalyzer : public clang::RecursiveASTVisitor<LambdaThisAnalyzer> 
+{
+public:
+    bool VisitMemberExpr(clang::MemberExpr* memberExpr) 
+    {
+        // 检查是否是通过 this 访问的成员
+        if (auto base = memberExpr->getBase()) 
+        {
+            if (isThisAccess(base)) 
+            {
+                if (auto fieldDecl = llvm::dyn_cast<clang::FieldDecl>(memberExpr->getMemberDecl())) 
+                    accessed_fields.emplace_back(fieldDecl);
+            }
+        }
+        return true;
+    }
+    std::vector<const clang::FieldDecl*> accessed_fields;
+private:
+    bool isThisAccess(const clang::Expr* expr) {
+        if (llvm::isa<clang::CXXThisExpr>(expr))
+            return true;
+        if (auto implicitCast = llvm::dyn_cast<clang::ImplicitCastExpr>(expr))
+            return isThisAccess(implicitCast->getSubExpr());
+        return false;
+    }
+};
+
+SSL::TypeDecl* ASTConsumer::TranslateLambda(const clang::LambdaExpr* x)
+{
+    if (_lambdas.contains(x))
+        return _lambdas[x];
+
+    // 1.自己的 method call 里，按 capture list 里 capture 的信息，生成参数列表并记录下来
+    std::vector<SSL::ParamVarDecl*> args;
+    for (auto capture : x->captures())
+    {
+        bool isThis = capture.capturesThis();
+        if (!isThis)
+        {
+            // 1.1  = 生成传值，& 生成 inout
+            auto var = capture.getCapturedVar();
+
+        }
+        else
+        {
+            // 1.2 this 需要把内部访问到的变量拆解开，再按 1.1 传入
+            LambdaThisAnalyzer analyzer;
+            analyzer.TraverseStmt(x->getBody());
+            for (auto field : analyzer.accessed_fields)
+                field->dump();
+        }
+    }
+
+    auto newLambda = TranslateRecordDecl(x->getLambdaClass());
+    if (newLambda == nullptr)
+        ReportFatalError(x, "Failed to translate lambda: {}", x->getSourceRange().getBegin().printToString(pASTContext->getSourceManager()));
+    _lambdas[x] = newLambda;
+    return newLambda;
+}
+
 bool ASTConsumer::VisitFunctionDecl(const clang::FunctionDecl* x)
 {
     if (auto StageInfo = IsStage(x))
@@ -604,9 +664,6 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
             (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
             SSL::EVariableQualifier::None;
 
-        if (auto recordDecl = ParamQualType->getAsRecordDecl();recordDecl && recordDecl->isLambda())
-            TranslateRecordDecl(recordDecl);
-
         if (auto _paramType = getType(ParamQualType))
         {
             auto paramName = param->getName().str();
@@ -648,11 +705,6 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
     if (AsMethod && !AsMethod->isStatic())
     {
         auto parentType = AsMethod->getParent();
-        if (parentType->isLambda())
-        {
-            TranslateRecordDecl(parentType);
-        }
-        
         auto _parentType = getType(parentType->getTypeForDecl()->getCanonicalTypeInternal());
         if (!_parentType)
         {
@@ -843,8 +895,11 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
                     ReportFatalError(x, "VarDecl as reference type is not supported: [{}]", Ty.getAsString());
                 if (Ty->getAsArrayTypeUnsafe())
                     ReportFatalError(x, "VarDecl as C-style array type is not supported: [{}]", Ty.getAsString());
-                if (auto asRecord = Ty->getAsRecordDecl(); asRecord && asRecord->isLambda())
-                    TranslateRecordDecl(asRecord);
+
+                if (auto AsLambda = Ty->getAsRecordDecl(); AsLambda && AsLambda->isLambda())
+                {
+                    TranslateLambda(clang::dyn_cast<clang::LambdaExpr>(varDecl->getInit()));
+                }
 
                 const bool isConst = varDecl->getType().isConstQualified();
                 if (auto SSLType = getType(Ty.getCanonicalType()))
@@ -934,6 +989,7 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     } 
     else if (auto cxxLambda = llvm::dyn_cast<LambdaExpr>(x)) 
     {
+        TranslateLambda(cxxLambda);
         return AST.Construct(getType(cxxLambda->getType()), {});
     }
     else if (auto cxxParenExpr = llvm::dyn_cast<clang::ParenExpr>(x))
@@ -967,16 +1023,17 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
         if (LanguageRule_UseAssignForImplicitCopyOrMove(cxxConstructor->getConstructor()))
             return TranslateStmt(cxxConstructor->getArg(0));
 
-        auto SSLType = getType(cxxConstructor->getType());
-        if (!SSLType->is_builtin())
-        {
-            TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(cxxConstructor->getConstructor()));
-        }
         std::vector<SSL::Expr*> _args;
         _args.reserve(cxxConstructor->getNumArgs());
         for (auto arg : cxxConstructor->arguments())
         {
             _args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+        }
+
+        auto SSLType = getType(cxxConstructor->getType());
+        if (!SSLType->is_builtin())
+        {
+            TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(cxxConstructor->getConstructor()));
         }
         return AST.Construct(SSLType, _args);
     }
@@ -1070,47 +1127,47 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
                 ReportFatalError(x, "Unsupported call operator: {}", name.str());
         }
         else if (auto AsMethod = clang::dyn_cast<clang::CXXMethodDecl>(funcDecl); AsMethod && !AsMethod->isStatic())
-        {
-            if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
-                ReportFatalError(x, "Method declaration failed!");
-            
+        {            
             SSL::MemberExpr* _callee = nullptr;
-            std::vector<SSL::Expr*> args;
-            args.reserve(cxxCall->getNumArgs());
-            if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
-            {
-                _callee = TranslateStmt<SSL::MemberExpr>(cxxMemberCall->getCallee());
-                for (auto arg : cxxCall->arguments())
-                {
-                    args.emplace_back(TranslateStmt<SSL::Expr>(arg));
-                }
-            }
-            else if (auto cxxOperatorCall = llvm::dyn_cast<clang::CXXOperatorCallExpr>(x))
-            {
-                auto _caller = TranslateStmt<SSL::DeclRefExpr>(cxxOperatorCall->getArg(0));
-                _callee = AST.Method(_caller, (SSL::MethodDecl*)getFunc(AsMethod));
-                for (size_t i = 1; i < cxxOperatorCall->getNumArgs(); ++i)
-                {
-                    args.emplace_back(TranslateStmt<SSL::Expr>(cxxOperatorCall->getArg(i)));
-                }
-            }
-            else
-                ReportFatalError(x, "Unsupported method call expression: {}", x->getStmtClassName());
-            
-            return AST.CallMethod(_callee, std::span<SSL::Expr*>(args));
-        }
-        else
-        {
-            if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
-                ReportFatalError(x, "Function declaration failed!");
-
-            auto _callee = TranslateStmt<SSL::DeclRefExpr>(cxxCall->getCallee());
             std::vector<SSL::Expr*> args;
             args.reserve(cxxCall->getNumArgs());
             for (auto arg : cxxCall->arguments())
             {
                 args.emplace_back(TranslateStmt<SSL::Expr>(arg));
             }
+
+            if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
+                ReportFatalError(x, "Method declaration failed!");
+
+            if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
+            {
+                _callee = TranslateStmt<SSL::MemberExpr>(cxxMemberCall->getCallee());
+            }
+            else if (auto cxxOperatorCall = llvm::dyn_cast<clang::CXXOperatorCallExpr>(x))
+            {
+                auto _caller = TranslateStmt<SSL::DeclRefExpr>(cxxOperatorCall->getArg(0));
+                _callee = AST.Method(_caller, (SSL::MethodDecl*)getFunc(AsMethod));
+                args.erase(args.begin()); // remove first arg, it is the caller
+            }
+            else
+                ReportFatalError(x, "Unsupported method call expression: {}", x->getStmtClassName());
+
+            return AST.CallMethod(_callee, std::span<SSL::Expr*>(args));
+        }
+        else
+        {
+            // some args carray types that function shall use (like lambdas, etc.)
+            // so we translate all args before translate & call the function 
+            std::vector<SSL::Expr*> args;
+            args.reserve(cxxCall->getNumArgs());
+            for (auto arg : cxxCall->arguments())
+            {
+                args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+            }
+
+            if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
+                ReportFatalError(x, "Function declaration failed!");
+            auto _callee = TranslateStmt<SSL::DeclRefExpr>(cxxCall->getCallee());
             return AST.CallFunction(_callee, args); 
         }
     }
