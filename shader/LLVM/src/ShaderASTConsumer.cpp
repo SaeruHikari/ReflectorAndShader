@@ -1178,17 +1178,17 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
         {
             // some args carray types that function shall use (like lambdas, etc.)
             // so we translate all args before translate & call the function 
-            std::vector<SSL::Expr*> args;
-            args.reserve(cxxCall->getNumArgs());
+            std::vector<SSL::Expr*> _args;
+            _args.reserve(cxxCall->getNumArgs());
             for (auto arg : cxxCall->arguments())
             {
-                args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+                _args.emplace_back(TranslateStmt<SSL::Expr>(arg));
             }
 
             if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
                 ReportFatalError(x, "Function declaration failed!");
             auto _callee = TranslateStmt<SSL::DeclRefExpr>(cxxCall->getCallee());
-            return AST.CallFunction(_callee, args); 
+            return AST.CallFunction(_callee, _args); 
         }
     }
     else if (auto cxxUnaryOp = llvm::dyn_cast<clang::UnaryOperator>(x))
