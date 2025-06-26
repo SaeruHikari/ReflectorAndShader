@@ -25,16 +25,16 @@ public:
 public:
     // ASTVisitor APIs
     bool shouldVisitTemplateInstantiations() const { return true; }
-    bool VisitEnumDecl(clang::EnumDecl* x);
-    bool VisitRecordDecl(clang::RecordDecl* x);
-    bool VisitFunctionDecl(clang::FunctionDecl* x);
-    bool VisitFieldDecl(clang::FieldDecl* x);
-    bool VisitVarDecl(clang::VarDecl* x);
+    bool VisitEnumDecl(const clang::EnumDecl* x);
+    bool VisitRecordDecl(const clang::RecordDecl* x);
+    bool VisitFunctionDecl(const clang::FunctionDecl* x);
+    bool VisitFieldDecl(const clang::FieldDecl* x);
+    bool VisitVarDecl(const clang::VarDecl* x);
 
 protected:
     SSL::TypeDecl* TranslateType(clang::QualType type);
-    SSL::TypeDecl* TranslateRecordDecl(clang::RecordDecl* x);
-    SSL::TypeDecl* TranslateEnumDecl(clang::EnumDecl* x);
+    SSL::TypeDecl* TranslateRecordDecl(const clang::RecordDecl* x);
+    SSL::TypeDecl* TranslateEnumDecl(const clang::EnumDecl* x);
     SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
 
     Stmt* TranslateStmt(const clang::Stmt *x);
@@ -55,8 +55,10 @@ protected:
     std::map<const clang::VarDecl*, skr::SSL::VarDecl*> _vars;
     std::map<const clang::FunctionDecl*, skr::SSL::FunctionDecl*> _funcs;
     std::map<const clang::EnumConstantDecl*, skr::SSL::GlobalVarDecl*> _enum_constants;
+    uint64_t next_lambda_id = 0;
+    uint64_t next_template_spec_id = 0;
     AST& AST;
-
+    
 protected:
     void DumpWithLocation(const clang::Stmt *stmt) const;
     void DumpWithLocation(const clang::Decl *decl) const;

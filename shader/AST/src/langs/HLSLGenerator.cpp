@@ -304,27 +304,20 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     else if (auto defaultStmt = dynamic_cast<const DefaultStmt*>(stmt))
     {
         sb.append(L"default:");
+        visitExpr(sb, defaultStmt->children()[0]);
     }
     else if (auto member = dynamic_cast<const MemberExpr*>(stmt))
     {
         auto owner = member->owner();
-        auto field = member->member_decl();
-        if (auto _as_field = dynamic_cast<const FieldDecl*>(field))
+        if (auto _member = dynamic_cast<const NamedDecl*>(member->member_decl()))
         {
             if (auto fromThis = dynamic_cast<const ThisExpr*>(member->children()[0]))
-            {
-                sb.append(_as_field->name());
-            }
+                sb.append(L"/*this.*/" + _member->name());
             else
             {
                 visitExpr(sb, owner);
-                sb.append(L"." + _as_field->name());
+                sb.append(L"." + _member->name());
             }
-        }
-        else if (auto _as_method = dynamic_cast<const MethodDecl*>(field))
-        {
-            visitExpr(sb, owner);
-            sb.append(L"." + _as_method->name());
         }
         else
         {
@@ -347,6 +340,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
         sb.append(L") ");
 
         visitExpr(sb, forStmt->body());
+        sb.endline();
     }
     else if (auto ifStmt = dynamic_cast<const IfStmt*>(stmt))
     {
@@ -358,6 +352,7 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
 
         if (ifStmt->else_body())
         {
+            sb.endline();
             sb.append(L"else");
             sb.endline();
             visitExpr(sb, ifStmt->else_body());
@@ -404,11 +399,13 @@ void HLSLGenerator::visitExpr(SourceBuilderNew& sb, const skr::SSL::Stmt* stmt)
     {
         sb.append(L"switch (");
         visitExpr(sb, switchStmt->cond());
-        sb.append(L")\n");
+        sb.append(L")");
+        sb.endline();
         sb.indent([&](){
             for (auto case_stmt : switchStmt->cases())
             {
                 visitExpr(sb, case_stmt);
+                sb.endline();
             }
         });
     }
@@ -646,7 +643,22 @@ void HLSLGenerator::visit(SourceBuilderNew& sb, const skr::SSL::FunctionDecl* fu
             for (size_t i = 0; i < params.size(); i++)
             {
                 auto param = params[i];
-                String content = param->type().name() + L" " + param->name();
+                auto qualifier = param->qualifier();
+
+                String prefix = L"";
+                switch (qualifier) 
+                {
+                case EVariableQualifier::Const:
+                    prefix = L"const ";
+                    break;
+                case EVariableQualifier::Inout:
+                    prefix = L"inout ";
+                    break;
+                case EVariableQualifier::None:
+                    prefix = L"";
+                    break;
+                }
+                String content = prefix + param->type().name() + L" " + param->name();
                
                 if (StageEntry)
                 {

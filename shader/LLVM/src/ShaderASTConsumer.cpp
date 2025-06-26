@@ -9,6 +9,8 @@
 
 namespace skr::SSL {
 
+inline static std::string OpKindToName(clang::OverloadedOperatorKind kind);
+
 const bool LanguageRule_UseAssignForImplicitCopyOrMove(const clang::Decl* x)
 {
     if (auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x))
@@ -21,6 +23,24 @@ const bool LanguageRule_UseAssignForImplicitCopyOrMove(const clang::Decl* x)
         }
         if (isImplicit && isCopyOrMove)
             return true;
+    }
+    return false;
+}
+
+const bool LanguageRule_UseMethodForOperatorOverload(const clang::Decl* decl, std::string* pReplaceName)
+{
+    if (auto funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl))
+    {
+        if (funcDecl->isOverloadedOperator())
+        {
+            if (pReplaceName) *pReplaceName = OpKindToName(funcDecl->getOverloadedOperator());
+            return true;
+        }
+    }
+    if (auto asConversion = llvm::dyn_cast<clang::CXXConversionDecl>(decl))
+    {
+        if (pReplaceName) *pReplaceName = "cast_to_" + asConversion->getType().getAsString();
+        return true;
     }
     return false;
 }
@@ -162,7 +182,7 @@ inline static clang::AnnotateAttr* ExistShaderAttrWithName(const clang::Decl* de
     auto attrs = decl->specific_attrs<clang::AnnotateAttr>();
     for (auto attr : attrs)
     {
-        if (attr->getAnnotation() != "skr-shader")
+        if (attr->getAnnotation() != "skr-shader" && attr->getAnnotation() != "luisa-shader")
             continue;
         if (GetArgumentAt<clang::StringRef>(attr, 0) == name)
             return attr;
@@ -232,18 +252,18 @@ void ASTConsumer::HandleTranslationUnit(clang::ASTContext& Context)
     TraverseDecl(Context.getTranslationUnitDecl());
 }
 
-bool ASTConsumer::VisitEnumDecl(clang::EnumDecl* enumDecl)
+bool ASTConsumer::VisitEnumDecl(const clang::EnumDecl* enumDecl)
 {
     return TranslateEnumDecl(enumDecl);
 }
 
-bool ASTConsumer::VisitRecordDecl(clang::RecordDecl* recordDecl)
+bool ASTConsumer::VisitRecordDecl(const clang::RecordDecl* recordDecl)
 {    
     TranslateRecordDecl(recordDecl);
     return true;
 }
 
-SSL::TypeDecl* ASTConsumer::TranslateEnumDecl(clang::EnumDecl* enumDecl)
+SSL::TypeDecl* ASTConsumer::TranslateEnumDecl(const clang::EnumDecl* enumDecl)
 {
     using namespace clang;
 
@@ -267,7 +287,7 @@ SSL::TypeDecl* ASTConsumer::TranslateEnumDecl(clang::EnumDecl* enumDecl)
     return UnderlyingType;
 }
 
-SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
+SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(const clang::RecordDecl* recordDecl)
 {
     using namespace clang;
 
@@ -292,19 +312,27 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
     if (IsIgnore(recordDecl)) return nullptr; // skip ignored types
     if (TSD && TSD_Partial) return nullptr; // skip no-def template specs
     
-    if (auto BuiltinAttr = IsBuiltin(TSD ? clang::dyn_cast<clang::Decl>(TSD->getSpecializedTemplate()->getTemplatedDecl()) : recordDecl))
+    clang::AnnotateAttr* BuiltinAttr = IsBuiltin(recordDecl);
+    if (TSD)
+    {
+        BuiltinAttr = BuiltinAttr ? BuiltinAttr : IsBuiltin(TSD);
+        BuiltinAttr = BuiltinAttr ? BuiltinAttr : IsBuiltin(TSD->getSpecializedTemplate()->getTemplatedDecl());
+    }
+    if (BuiltinAttr != nullptr)
     {
         auto What = GetArgumentAt<clang::StringRef>(BuiltinAttr, 1);
         if (TSD && What == "vec")
         {
+            if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
+            
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType().getCanonicalType();
             const uint64_t N = Arguments.get(1).getAsIntegral().getLimitedValue();
-            
+
             if (getType(ET) == nullptr)
                 ReportFatalError(recordDecl, "Error element type!");
             if (N <= 1 || N > 4) 
-                ReportFatalError("Unsupported vec size: " + std::to_string(N));
+                ReportFatalError(TSD, "Unsupported vec size: {}", std::to_string(N));
 
             if (getType(ET) == AST.FloatType)
             {
@@ -338,6 +366,8 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         }
         else if (TSD && What == "array")
         {
+            if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
+
             const auto& Arguments = TSD->getTemplateArgs();
             const auto ET = Arguments.get(0).getAsType();
             const auto N = Arguments.get(1).getAsIntegral().getLimitedValue();
@@ -351,6 +381,8 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         }
         else if (TSD && What == "matrix")
         {
+            if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
+
             const auto& Arguments = TSD->getTemplateArgs();
             const auto N = Arguments.get(0).getAsIntegral().getLimitedValue();
             const skr::SSL::TypeDecl* Types[] = { AST.Float2x2Type, AST.Float3x3Type, AST.Float4x4Type };
@@ -401,7 +433,6 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         {
             addType(ThisQualType, AST.DeclareBuiltinType(L"bindless_array", 0));
         }
-
     } 
     else 
     {
@@ -409,7 +440,9 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         if (TSD && !TSD->isCompleteDefinition()) return nullptr; // skip no-def template specs
         if (!TSD && TemplateItSelf) return nullptr; // skip template definitions
 
-        auto TypeName = TSD ? std::format("{}_{}", TSD->getQualifiedNameAsString(), (intptr_t)TSD) : recordDecl->getQualifiedNameAsString();
+        auto TypeName = TSD ? std::format("{}_{}", TSD->getQualifiedNameAsString(), next_template_spec_id++) :
+                                recordDecl->isLambda() ?  "lambda_" + std::to_string(next_lambda_id++) : 
+                                recordDecl->getQualifiedNameAsString();
         if (getType(ThisQualType))
             ReportFatalError(recordDecl, "Duplicate type declaration: {}", TypeName);
 
@@ -418,33 +451,12 @@ SSL::TypeDecl* ASTConsumer::TranslateRecordDecl(clang::RecordDecl* recordDecl)
         if (NewType == nullptr)
             ReportFatalError(recordDecl, "Failed to create type: {}", TypeName);
 
-        for (auto field : recordDecl->fields())
-        {
-            if (IsDump(field)) 
-                field->dump();
-
-            auto fieldType = field->getType();
-            if (field->getType()->isReferenceType() || field->getType()->isPointerType())
-                ReportFatalError(field, "Field type cannot be reference or pointer!");
-            auto _fieldType = getType(fieldType);
-            if (!_fieldType)
-            {
-                TranslateType(fieldType);
-                _fieldType = getType(fieldType);
-            }
-
-            if (!_fieldType)
-                ReportFatalError(recordDecl, "Unknown field type: {} for field: {}", std::string(fieldType->getTypeClassName()), field->getName().str());
-
-            NewType->add_field(AST.DeclareField(ToText(field->getName()), _fieldType));
-        }
-
         addType(ThisQualType, NewType);
     }
     return getType(ThisQualType);
 }
 
-bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
+bool ASTConsumer::VisitFunctionDecl(const clang::FunctionDecl* x)
 {
     if (auto StageInfo = IsStage(x))
     {
@@ -474,7 +486,7 @@ bool ASTConsumer::VisitFunctionDecl(clang::FunctionDecl* x)
     return true;
 }
 
-bool ASTConsumer::VisitFieldDecl(clang::FieldDecl* x)
+bool ASTConsumer::VisitFieldDecl(const clang::FieldDecl* x)
 {
     if (IsDump(x))
         x->dump();
@@ -485,7 +497,7 @@ bool ASTConsumer::VisitFieldDecl(clang::FieldDecl* x)
     return true;
 }
 
-bool ASTConsumer::VisitVarDecl(clang::VarDecl* x)
+bool ASTConsumer::VisitVarDecl(const clang::VarDecl* x)
 {
     if (IsDump(x))
         x->dump();
@@ -545,25 +557,53 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
     if (LanguageRule_UseAssignForImplicitCopyOrMove(x))
         return nullptr;
 
+    std::string OVERRIDE_NAME = "OP_OVERLOAD";
+    if (bool AsOpOverload = LanguageRule_UseMethodForOperatorOverload(x, &OVERRIDE_NAME); 
+        AsOpOverload && override_name.empty())
+    {
+        override_name = OVERRIDE_NAME;
+    }
+
     std::vector<SSL::ParamVarDecl*> params;
     params.reserve(x->getNumParams());
     for (const auto& param : x->parameters())
     {
-        const bool isConst = param->getType().isConstQualified();
-        const bool isRef = param->getType()->isReferenceType();
-        const auto ParamQualType = param->getType().getNonReferenceType().getCanonicalType();
+        const bool isRef = param->getType()->isReferenceType() && !param->getType()->isRValueReferenceType();
+        const auto ParamQualType = param->getType().getNonReferenceType();
+        const bool isConst = ParamQualType.isConstQualified();
+        
         const auto qualifier = 
-            isConst ? SSL::EVariableQualifier::Const : 
-            (isRef ? SSL::EVariableQualifier::Inout : SSL::EVariableQualifier::None);
+            (isRef && isConst) ? SSL::EVariableQualifier::Const : 
+            (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
+            SSL::EVariableQualifier::None;
+
+        if (auto recordDecl = ParamQualType->getAsRecordDecl();recordDecl && recordDecl->isLambda())
+            TranslateRecordDecl(recordDecl);
 
         if (auto _paramType = getType(ParamQualType))
         {
+            auto paramName = param->getName().str();
+            if (paramName.empty())
+                paramName = std::format("param_{}", param->getFunctionScopeIndex());
             auto _param = params.emplace_back(AST.DeclareParam(
                 qualifier,
                 _paramType,
-                ToText(param->getName()))
+                ToText(paramName))
             );
             addVar(param, _param);
+
+            if (auto AsLambda = ParamQualType->getAsRecordDecl();AsLambda && AsLambda->isLambda())
+            {
+                for (auto lambdaCapture : AsLambda->fields())
+                {
+                    auto captureType = lambdaCapture->getType();
+                    params.emplace_back(AST.DeclareParam(
+                        captureType->isReferenceType() ? EVariableQualifier::Inout : EVariableQualifier::Const,
+                        getType(lambdaCapture->getType()),
+                        std::format(L"cap_{}_{}", ToText(lambdaCapture->getName()), params.size()))
+                    );
+                }
+            }
 
             if (auto BuiltinInfo = IsBuiltin(param))
             {
@@ -576,15 +616,24 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
             ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
         }
     }
-
     SSL::FunctionDecl* F = nullptr;
     auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x);
     if (AsMethod && !AsMethod->isStatic())
     {
-        auto ownerType = getType(AsMethod->getParent()->getTypeForDecl()->getCanonicalTypeInternal());
-        if (auto AsCtor = llvm::dyn_cast<clang::CXXConstructorDecl>(AsMethod))
+        auto parentType = AsMethod->getParent();
+        if (parentType->isLambda())
         {
-            if (ownerType->is_builtin())
+            TranslateRecordDecl(parentType);
+        }
+        
+        auto _parentType = getType(parentType->getTypeForDecl()->getCanonicalTypeInternal());
+        if (!_parentType)
+        {
+            ReportFatalError(x, "Method {} has no owner type", AsMethod->getNameAsString());
+        }
+        else if (auto AsCtor = llvm::dyn_cast<clang::CXXConstructorDecl>(AsMethod))
+        {
+            if (_parentType->is_builtin())
                 return nullptr;
 
             auto body = AST.Block({});
@@ -596,7 +645,7 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
                     auto N = ToText(F->getDeclName().getAsString());
                     body->add_statement(
                         AST.Assign(
-                            AST.Field(AST.This(ownerType), ownerType->get_field(N)),
+                            AST.Field(AST.This(_parentType), _parentType->get_field(N)),
                             (SSL::Expr*)TranslateStmt(ctor_init->getInit())
                         )
                     );
@@ -611,23 +660,24 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
                 body->add_statement(func);
 
             F = AST.DeclareConstructor(
-                ownerType,
+                _parentType,
                 ConstructorDecl::kSymbolName,
                 params,
                 body
             );
-            ownerType->add_ctor((SSL::ConstructorDecl*)F);
+            _parentType->add_ctor((SSL::ConstructorDecl*)F);
         }
         else
         {
+            auto CxxMethodName = override_name.empty() ? AsMethod->getNameAsString() : override_name.str();
             F = AST.DeclareMethod(
-                ownerType,
-                ToText(AsMethod->getNameAsString()),
+                _parentType,
+                ToText(CxxMethodName),
                 getType(x->getReturnType()),
                 params,
                 TranslateStmt<SSL::CompoundStmt>(x->getBody())
             );
-            ownerType->add_method((SSL::MethodDecl*)F);
+            _parentType->add_method((SSL::MethodDecl*)F);
         }
     }
     else
@@ -761,11 +811,14 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             if (auto *varDecl = dyn_cast<clang::VarDecl>(decl)) 
             {
                 const auto Ty = varDecl->getType();
+
                 if (Ty->isReferenceType())
                     ReportFatalError(x, "VarDecl as reference type is not supported: [{}]", Ty.getAsString());
                 if (Ty->getAsArrayTypeUnsafe())
                     ReportFatalError(x, "VarDecl as C-style array type is not supported: [{}]", Ty.getAsString());
-                
+                if (auto asRecord = Ty->getAsRecordDecl(); asRecord && asRecord->isLambda())
+                    TranslateRecordDecl(asRecord);
+
                 const bool isConst = varDecl->getType().isConstQualified();
                 if (auto SSLType = getType(Ty.getCanonicalType()))
                 {
@@ -776,7 +829,9 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
                     var_decls.emplace_back(v); 
                 } 
                 else
+                {
                     ReportFatalError("VarDecl with unfound type: [{}]", Ty.getAsString());
+                }
             } else if (auto aliasDecl = dyn_cast<clang::TypeAliasDecl>(decl)) {// ignore
                 comments.emplace_back(AST.Comment(L"c++: this line is a typedef"));
             } else if (auto staticAssertDecl = dyn_cast<clang::StaticAssertDecl>(decl)) {// ignore
@@ -852,8 +907,7 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     } 
     else if (auto cxxLambda = llvm::dyn_cast<LambdaExpr>(x)) 
     {
-        ReportFatalError("Lambda expressions are not supported in skr-shader.");
-        return nullptr;
+        return AST.Construct(getType(cxxLambda->getType()), {});
     }
     else if (auto cxxParenExpr = llvm::dyn_cast<clang::ParenExpr>(x))
     {
@@ -988,18 +1042,34 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
             else
                 ReportFatalError(x, "Unsupported call operator: {}", name.str());
         }
-        else if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
+        else if (auto AsMethod = clang::dyn_cast<clang::CXXMethodDecl>(funcDecl); AsMethod && !AsMethod->isStatic())
         {
             if (!TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
                 ReportFatalError(x, "Method declaration failed!");
-
-            auto _callee = TranslateStmt<SSL::MemberExpr>(cxxMemberCall->getCallee());
+            
+            SSL::MemberExpr* _callee = nullptr;
             std::vector<SSL::Expr*> args;
-            args.reserve(cxxMemberCall->getNumArgs());
-            for (auto arg : cxxMemberCall->arguments())
+            args.reserve(cxxCall->getNumArgs());
+            if (auto cxxMemberCall = llvm::dyn_cast<clang::CXXMemberCallExpr>(x))
             {
-                args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+                _callee = TranslateStmt<SSL::MemberExpr>(cxxMemberCall->getCallee());
+                for (auto arg : cxxCall->arguments())
+                {
+                    args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+                }
             }
+            else if (auto cxxOperatorCall = llvm::dyn_cast<clang::CXXOperatorCallExpr>(x))
+            {
+                auto _caller = TranslateStmt<SSL::DeclRefExpr>(cxxOperatorCall->getArg(0));
+                _callee = AST.Method(_caller, (SSL::MethodDecl*)getFunc(AsMethod));
+                for (size_t i = 1; i < cxxOperatorCall->getNumArgs(); ++i)
+                {
+                    args.emplace_back(TranslateStmt<SSL::Expr>(cxxOperatorCall->getArg(i)));
+                }
+            }
+            else
+                ReportFatalError(x, "Unsupported method call expression: {}", x->getStmtClassName());
+            
             return AST.CallMethod(_callee, std::span<SSL::Expr*>(args));
         }
         else
@@ -1235,6 +1305,35 @@ skr::SSL::FunctionDecl* ASTConsumer::getFunc(const clang::FunctionDecl* func) co
     if (it != _funcs.end())
         return it->second;
     return nullptr;
+}
+
+inline static std::string OpKindToName(clang::OverloadedOperatorKind op)
+{
+    switch (op) {
+        case clang::OO_Pipe: return "operator_pipe";
+        case clang::OO_Amp: return "operator_amp";
+        case clang::OO_AmpEqual: return "operator_amp_assign";
+        case clang::OO_Plus: return "operator_plus";
+        case clang::OO_Minus: return "operator_minus";
+        case clang::OO_Star: return "operator_multiply";
+        case clang::OO_Slash: return "operator_divide";
+        case clang::OO_StarEqual: return "operator_multiply_assign";
+        case clang::OO_SlashEqual: return "operator_divide_assign";
+        case clang::OO_PlusEqual: return "operator_plus_assign";
+        case clang::OO_MinusEqual: return "operator_minus_assign";
+        case clang::OO_EqualEqual: return "operator_equal";
+        case clang::OO_ExclaimEqual: return "operator_not_equal";
+        case clang::OO_Less: return "operator_less";
+        case clang::OO_Greater: return "operator_greater";
+        case clang::OO_LessEqual: return "operator_less_equal";
+        case clang::OO_GreaterEqual: return "operator_greater_equal";
+        case clang::OO_Subscript: return "operator_subscript";
+        case clang::OO_Call: return "operator_call";
+        default: 
+            auto message = std::string("Unsupported operator kind: ") + std::to_string(op);
+            llvm::report_fatal_error(message.c_str());
+            return "operator_unknown";
+    }
 }
 
 } // namespace skr::SSL
