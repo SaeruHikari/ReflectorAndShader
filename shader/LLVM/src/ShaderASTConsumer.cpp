@@ -247,7 +247,7 @@ ASTConsumer::ASTConsumer(skr::SSL::AST& AST)
 
 ASTConsumer::~ASTConsumer()
 {
-    for (auto stack : _stacks)
+    for (auto& [func, stack] : _stacks)
     {
         delete stack;
     }
@@ -260,7 +260,7 @@ ASTConsumer::~ASTConsumer()
 FunctionStack* ASTConsumer::zzNewStack(const clang::FunctionDecl* func)
 {
     auto stack = new FunctionStack(func, this);
-    _stacks.emplace_back(stack);
+    _stacks.emplace(func, stack);
     return stack;
 }
 
@@ -517,16 +517,16 @@ const SSL::TypeDecl* ASTConsumer::TranslateLambda(const clang::LambdaExpr* x)
     if (_lambda_types.contains(x))
         return _lambda_types[x];
 
+    auto lambdaMethod = x->getCallOperator();
     appendStack(x->getCallOperator());
     DeferGuard defer([&]() { popStack(); });
 
     std::vector<SSL::ParamVarDecl*> _params;
-    auto lambdaMethod = x->getCallOperator();
-    for (auto param : lambdaMethod->parameters())
-    {
-        TranslateParam(_params, param);
-    }
-    TranslateLambdaCapturesToParams(_params, x);
+    TranslateParams(_params, lambdaMethod);
+    
+    TranslateLambdaCapturesToParams(x);
+    _params.insert(_params.end(), current_stack->_captured_params.begin(), current_stack->_captured_params.end());
+
     auto returnType = lambdaMethod->getReturnType();
     auto lambdaWrapper = AST.DeclareStructure(std::format(L"lambda_{}", next_lambda_id++), {});
     auto lambdaBody = TranslateStmt<SSL::CompoundStmt>(x->getBody());
@@ -571,27 +571,32 @@ private:
     }
 };
 
-void ASTConsumer::TranslateLambdaCapturesToParams(std::vector<SSL::ParamVarDecl*>& params, const clang::LambdaExpr* x)
+void ASTConsumer::TranslateLambdaCapturesToParams(const clang::LambdaExpr* x)
 {
     auto translateCaptureToParam = [&](SSL::TypeDecl* _type, const SSL::String& name, bool byref) 
     {
-        TranslateParam(params, byref ? EVariableQualifier::Inout : EVariableQualifier::None, _type, L"cap_" + name);
+        return TranslateParam(current_stack->_captured_params, byref ? EVariableQualifier::Inout : EVariableQualifier::None, _type, L"cap_" + name);
     };
 
-    params.reserve(x->capture_size() + params.size()); // reserve space for captures
+    current_stack->_captured_params.reserve(x->capture_size() + current_stack->_captured_params.size()); // reserve space for captures
     for (auto capture : x->captures())
     {
         bool isThis = capture.capturesThis();
         if (!isThis)
         {
             // 1.1  = 生成传值，& 生成 inout
-            auto param_idx = params.size();
-            translateCaptureToParam(
+            auto newParam = translateCaptureToParam(
                 getType(capture.getCapturedVar()->getType()), 
                 ToText(capture.getCapturedVar()->getName()), 
                 capture.getCaptureKind() == clang::LambdaCaptureKind::LCK_ByRef
             );
-            auto newParam = params[param_idx];
+            FunctionStack::CapturedParamInfo info = {
+                .owner = x,
+                .asVar = clang::dyn_cast<clang::VarDecl>(capture.getCapturedVar()),
+                .asCaptureThisField = nullptr
+            };
+            current_stack->_captured_infos.emplace(newParam, info);
+            current_stack->_captured_maps.emplace(info, newParam);
             current_stack->_lambda_value_redirects[clang::dyn_cast<clang::VarDecl>(capture.getCapturedVar())] = newParam;
         }
         else
@@ -601,13 +606,18 @@ void ASTConsumer::TranslateLambdaCapturesToParams(std::vector<SSL::ParamVarDecl*
             analyzer.TraverseStmt(x->getBody());
             for (auto&& [field, exprs] : analyzer.member_redirects)
             {
-                auto param_idx = params.size();
-                translateCaptureToParam(
+                auto newParam = translateCaptureToParam(
                     getType(field->getType()),
                     ToText(field->getName()),
                     true
                 );
-                auto newParam = params[param_idx];
+                FunctionStack::CapturedParamInfo info = {
+                    .owner = x,
+                    .asVar = nullptr,
+                    .asCaptureThisField = field
+                };
+                current_stack->_captured_infos.emplace(newParam, info);
+                current_stack->_captured_maps.emplace(info, newParam);
                 for (auto expr : exprs)
                 {
                     current_stack->_lambda_expr_redirects[expr] = newParam->ref();
@@ -615,57 +625,6 @@ void ASTConsumer::TranslateLambdaCapturesToParams(std::vector<SSL::ParamVarDecl*
             }
         }  
     }  
-}
-
-void ASTConsumer::TranslateLambdaCapturesToArgs(std::vector<SSL::Expr*>& _args, const clang::LambdaExpr* lambdaExpr)
-{
-    auto lambdaWrapper = _lambda_types[lambdaExpr];
-    bool isInplaceLambdaCall = true;
-    const VarDecl* redirectVar = nullptr;
-
-    for (auto&& [redirect, captures] : _lambda_param_captures)
-    {
-        if (&redirect->type() == lambdaWrapper)
-        {
-            isInplaceLambdaCall = false; // this is a lambda call, not an inplace call
-            redirectVar = redirect;
-            break;
-        }
-    }
-
-    if (isInplaceLambdaCall)
-    {
-        for (auto& capture : lambdaExpr->captures())
-        {
-            bool isThis = capture.capturesThis();
-            if (!isThis)
-            {
-                if (auto AsVar = llvm::dyn_cast<clang::VarDecl>(capture.getCapturedVar()))
-                    _args.emplace_back(getVar(AsVar)->ref());
-                else
-                    ReportFatalError(lambdaExpr, "Unsupported lambda capture variable type: {}", capture.getCapturedVar()->getType().getAsString());
-            }
-            else
-            {
-                LambdaThisAnalyzer analyzer;
-                analyzer.TraverseStmt(lambdaExpr->getBody());
-                for (auto&& [field, redirects] : analyzer.member_redirects)
-                {
-                    auto _thisType = current_stack->methodThisType();
-                    auto _field = _thisType->get_field(ToText(field->getName()));
-                    _args.emplace_back(AST.Field(AST.This(current_stack->methodThisType()), _field));
-                }
-            }
-        }
-    }
-    else
-    {
-        // if this is a lambda call, we need to add the captures to the args
-        for (auto& redirect : _lambda_param_captures[redirectVar])
-        {
-            _args.emplace_back(redirect->ref());
-        }
-    }
 }
 
 SSL::Stmt* ASTConsumer::TranslateCall(const clang::Decl* _funcDecl, const clang::Stmt* callExpr)
@@ -682,42 +641,39 @@ SSL::Stmt* ASTConsumer::TranslateCall(const clang::Decl* _funcDecl, const clang:
     
     // some args carray types that function shall use (like lambdas, etc.)
     // so we translate all args before translate & call the function 
-    std::vector<SSL::Expr*> _unwrapped_args;
-    _unwrapped_args.reserve(AsCall ? AsCall->getNumArgs() : AsConstruct->getNumArgs());
+    std::vector<SSL::Expr*> _args;
+    _args.reserve(AsCall ? AsCall->getNumArgs() : AsConstruct->getNumArgs());
     for (auto arg : AsCall ? AsCall->arguments() : AsConstruct->arguments())
-        _unwrapped_args.emplace_back(TranslateStmt<SSL::Expr>(arg));
+        _args.emplace_back(TranslateStmt<SSL::Expr>(arg));
     if (AsCXXOperatorCall && methodDecl) // op call to methods use first arg as the caller
-        _unwrapped_args.erase(_unwrapped_args.begin());
+        _args.erase(_args.begin());
 
     // translate function declaration
     if (!AsConstructorForBuiltin && !TranslateFunction(llvm::dyn_cast<clang::FunctionDecl>(funcDecl)))
         ReportFatalError(callExpr, "Function declaration failed!");
 
     // deal with capture-bypasses
-    std::vector<SSL::Expr*> _args;
-    _args.reserve(_unwrapped_args.size());
-    const auto N = funcDecl->param_size();
-    for (uint32_t i = 0; i < N; i++)
+    if (_stacks.contains(funcDecl))
     {
-        _args.emplace_back(_unwrapped_args[i]);
-        // unwrap lambda captures
-        auto param = funcDecl->getParamDecl(i);
-        auto _paramType = getType(param->getType());
-        if (_lambda_wrappers.contains(_paramType) && _lambda_param_captures.contains(getVar(param)))
+        auto& functionStack = _stacks[funcDecl];
+        for (auto bypass : functionStack->_captured_params)
         {
-            for (auto capture : _lambda_param_captures[getVar(param)])
+            auto info = functionStack->_captured_infos[bypass];
+            if (current_stack->_captured_maps.contains(info))
+                _args.emplace_back(current_stack->_captured_maps[info]->ref());
+            else // capture from stack
             {
-                _args.emplace_back(capture->ref());
+                if (auto AsVar = info.asVar)
+                {
+                    _args.emplace_back(getVar(AsVar)->ref());
+                }
+                else
+                {
+                    _args.emplace_back(AST.Field(AST.This(current_stack->methodThisType()), 
+                        current_stack->methodThisType()->get_field(ToText(info.asCaptureThisField->getName()))));
+                }
             }
         }
-    }
-    if (_args.size() < _unwrapped_args.size())
-        ReportFatalError(callExpr, "Argument count mismatch: expected {}, got {}", _args.size(), _unwrapped_args.size());
-
-    if (methodDecl && _lambda_methods.contains(methodDecl))
-    {
-        auto lambdaExpr = _lambda_methods[methodDecl];
-        TranslateLambdaCapturesToArgs(_args, lambdaExpr);
     }
 
     if (AsConstruct != nullptr)
@@ -840,58 +796,55 @@ SSL::TypeDecl* ASTConsumer::TranslateType(clang::QualType type)
     return getType(type);
 }
 
-void ASTConsumer::TranslateParam(std::vector<SSL::ParamVarDecl*>& params, skr::SSL::EVariableQualifier qualifier, const skr::SSL::TypeDecl* type, const skr::SSL::Name& name)
+SSL::ParamVarDecl* ASTConsumer::TranslateParam(std::vector<SSL::ParamVarDecl*>& params, skr::SSL::EVariableQualifier qualifier, const skr::SSL::TypeDecl* type, const skr::SSL::Name& name)
 {
     auto _param = AST.DeclareParam(qualifier, type, name);
     params.emplace_back(_param);
-
     if (auto is_lambda = _lambda_wrappers.contains(type))
     {
-        const auto& captures = _lambda_wrappers[type]->captures();
-        std::vector<skr::SSL::ParamVarDecl*> _captures;
-        TranslateLambdaCapturesToParams(_captures, _lambda_wrappers[type]);
-        params.insert(params.end(), _captures.begin(), _captures.end());
-        _lambda_param_captures[_param] = std::move(_captures);
+        TranslateLambdaCapturesToParams(_lambda_wrappers[type]);
     }
+    return _param;
 }
 
-void ASTConsumer::TranslateParam(std::vector<SSL::ParamVarDecl*>& params, const clang::ParmVarDecl* param)
+void ASTConsumer::TranslateParams(std::vector<SSL::ParamVarDecl*>& params, const clang::FunctionDecl* func)
 {
-    auto iter = _vars.find(param);
-    if (iter != _vars.end()) 
-        return; // already processed
+    params.reserve(params.size() + func->param_size());
 
-    const bool isRef = param->getType()->isReferenceType() && !param->getType()->isRValueReferenceType();
-    const auto ParamQualType = param->getType().getNonReferenceType();
-    const bool isConst = ParamQualType.isConstQualified();
-    
-    const auto qualifier = 
-        (isRef && isConst) ? SSL::EVariableQualifier::Const : 
-        (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
-        SSL::EVariableQualifier::None;
-
-    if (auto _paramType = getType(ParamQualType))
+    for (auto param : func->parameters())
     {
-        auto paramName = param->getName().str();
-        if (paramName.empty())
-            paramName = std::format("param_{}", param->getFunctionScopeIndex());
-        auto new_idx = params.size();
-        TranslateParam(params, qualifier, _paramType, ToText(paramName));
-        auto _param = params[new_idx];
-        addVar(param, _param);
+        auto iter = _vars.find(param);
+        if (iter != _vars.end()) 
+            continue;
 
-        if (auto BuiltinInfo = IsBuiltin(param))
+        const bool isRef = param->getType()->isReferenceType() && !param->getType()->isRValueReferenceType();
+        const auto ParamQualType = param->getType().getNonReferenceType();
+        const bool isConst = ParamQualType.isConstQualified();
+        
+        const auto qualifier = 
+            (isRef && isConst) ? SSL::EVariableQualifier::Const : 
+            (isRef && !isConst) ? SSL::EVariableQualifier::Inout : 
+            SSL::EVariableQualifier::None;
+
+        if (auto _paramType = getType(ParamQualType))
         {
-            auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
-            _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+            auto paramName = param->getName().str();
+            if (paramName.empty())
+                paramName = std::format("param_{}", param->getFunctionScopeIndex());
+            auto _param = TranslateParam(params, qualifier, _paramType, ToText(paramName));
+            addVar(param, _param);
+
+            if (auto BuiltinInfo = IsBuiltin(param))
+            {
+                auto BuiltinName = GetArgumentAt<clang::StringRef>(BuiltinInfo, 1);
+                _param->add_attr(AST.DeclareAttr<BuiltinAttr>(ToText(BuiltinName)));
+            }
         }
-        return;
+        else
+        {
+            ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
+        }
     }
-    else
-    {
-        ReportFatalError(param, "Unknown parameter type: {} for parameter: {}", ParamQualType.getAsString(), std::string(param->getName()));
-    }
-    return;
 }
 
 SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, llvm::StringRef override_name) 
@@ -917,11 +870,9 @@ SSL::FunctionDecl* ASTConsumer::TranslateFunction(const clang::FunctionDecl *x, 
     }
 
     std::vector<SSL::ParamVarDecl*> params;
-    params.reserve(x->getNumParams());
-    for (const auto& param : x->parameters())
-    {
-        TranslateParam(params, param);
-    }
+    TranslateParams(params, x);
+    params.insert(params.end(), current_stack->_captured_params.begin(), current_stack->_captured_params.end());
+
     SSL::FunctionDecl* F = nullptr;
     auto AsMethod = llvm::dyn_cast<clang::CXXMethodDecl>(x);
     if (AsMethod && !AsMethod->isStatic())
@@ -1211,6 +1162,7 @@ Stmt* ASTConsumer::TranslateStmt(const clang::Stmt *x)
     } 
     else if (auto cxxLambda = llvm::dyn_cast<LambdaExpr>(x)) 
     {
+        current_stack->_local_lambdas.insert(cxxLambda);
         TranslateLambda(cxxLambda);
         return AST.Construct(getType(cxxLambda->getType()), {});
     }

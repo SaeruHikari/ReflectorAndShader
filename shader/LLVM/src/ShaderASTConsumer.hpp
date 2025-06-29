@@ -21,6 +21,20 @@ public:
 
     std::map<const clang::Expr*, skr::SSL::Expr*> _lambda_expr_redirects;
     std::map<const clang::VarDecl*, skr::SSL::ParamVarDecl*> _lambda_value_redirects;
+    std::vector<skr::SSL::ParamVarDecl*> _captured_params;
+    struct CapturedParamInfo
+    {
+        const clang::LambdaExpr* owner = nullptr;
+        const clang::VarDecl* asVar = nullptr;
+        const clang::FieldDecl* asCaptureThisField = nullptr;
+        bool operator<(const CapturedParamInfo& other) const
+        {
+            return std::tie(owner, asVar, asCaptureThisField) < std::tie(other.owner, other.asVar, other.asCaptureThisField);
+        }
+    };
+    std::map<skr::SSL::ParamVarDecl*, CapturedParamInfo> _captured_infos;
+    std::map<CapturedParamInfo, skr::SSL::ParamVarDecl*> _captured_maps;
+    std::set<const clang::LambdaExpr*> _local_lambdas;
 
 private:
     friend class ASTConsumer;
@@ -57,12 +71,11 @@ protected:
     SSL::TypeDecl* TranslateType(clang::QualType type);
     SSL::TypeDecl* TranslateRecordDecl(const clang::RecordDecl* x);
     SSL::TypeDecl* TranslateEnumDecl(const clang::EnumDecl* x);
-    void TranslateParam(std::vector<SSL::ParamVarDecl*>& params, skr::SSL::EVariableQualifier qualifier, const skr::SSL::TypeDecl* type, const skr::SSL::Name& name);
-    void TranslateParam(std::vector<SSL::ParamVarDecl*>& params, const clang::ParmVarDecl* x);
+    SSL::ParamVarDecl* TranslateParam(std::vector<SSL::ParamVarDecl*>& params, skr::SSL::EVariableQualifier qualifier, const skr::SSL::TypeDecl* type, const skr::SSL::Name& name);
+    void TranslateParams(std::vector<SSL::ParamVarDecl*>& params, const clang::FunctionDecl* x);
     SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
     const SSL::TypeDecl* TranslateLambda(const clang::LambdaExpr* x);
-    void TranslateLambdaCapturesToParams(std::vector<SSL::ParamVarDecl*>& params, const clang::LambdaExpr* x);
-    void TranslateLambdaCapturesToArgs(std::vector<SSL::Expr*>& args, const clang::LambdaExpr* x);
+    void TranslateLambdaCapturesToParams(const clang::LambdaExpr* x);
     SSL::Stmt* TranslateCall(const clang::Decl* toCall, const clang::Stmt* callExpr);
 
     Stmt* TranslateStmt(const clang::Stmt *x);
@@ -87,7 +100,6 @@ protected:
     std::map<const clang::LambdaExpr*, const skr::SSL::TypeDecl*> _lambda_types;
     std::map<const clang::CXXMethodDecl*, const clang::LambdaExpr*> _lambda_methods;
     std::map<const skr::SSL::TypeDecl*, const clang::LambdaExpr*> _lambda_wrappers;
-    std::map<const skr::SSL::VarDecl*, std::vector<skr::SSL::ParamVarDecl*>> _lambda_param_captures;
 
     uint64_t next_lambda_id = 0;
     uint64_t next_template_spec_id = 0;
@@ -96,7 +108,7 @@ protected:
 protected:
     FunctionStack* root_stack = nullptr;
     FunctionStack* current_stack = nullptr;
-    std::vector<FunctionStack*> _stacks;
+    std::map<const clang::FunctionDecl*, FunctionStack*> _stacks;
 
     FunctionStack* zzNewStack(const clang::FunctionDecl* func);
     void appendStack(const clang::FunctionDecl* func)

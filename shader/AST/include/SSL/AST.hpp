@@ -4,6 +4,7 @@
 #include "Decl.hpp"
 #include "Constant.hpp"
 
+#include <set>
 #include <map>
 #include <unordered_map>
 #include <format>
