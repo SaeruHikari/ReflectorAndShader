@@ -14,9 +14,31 @@ public:
     skr::SSL::AST& AST;
 };
 
+struct FunctionStack
+{
+public:
+    const skr::SSL::TypeDecl* methodThisType() const;
+
+    std::map<const clang::Expr*, skr::SSL::Expr*> _lambda_expr_redirects;
+    std::map<const clang::VarDecl*, skr::SSL::ParamVarDecl*> _lambda_value_redirects;
+
+private:
+    friend class ASTConsumer;
+    FunctionStack(const clang::FunctionDecl* func, const ASTConsumer* pASTConsumer)
+        : func(func), pASTConsumer(pASTConsumer)
+    {
+
+    }
+
+    const clang::FunctionDecl* func = nullptr;
+    const ASTConsumer* pASTConsumer = nullptr;
+    FunctionStack* prev = nullptr;
+};
+
 class ASTConsumer : public clang::ASTConsumer, public clang::RecursiveASTVisitor<ASTConsumer>
 {
 public:
+    friend struct FunctionStack;
     explicit ASTConsumer(skr::SSL::AST& AST);
     virtual ~ASTConsumer() override;
 
@@ -34,10 +56,14 @@ public:
 protected:
     SSL::TypeDecl* TranslateType(clang::QualType type);
     SSL::TypeDecl* TranslateRecordDecl(const clang::RecordDecl* x);
-    SSL::TypeDecl* TranslateLambda(const clang::LambdaExpr* x);
     SSL::TypeDecl* TranslateEnumDecl(const clang::EnumDecl* x);
-    SSL::ParamVarDecl* TranslateParam(const clang::ParmVarDecl* x);
+    void TranslateParam(std::vector<SSL::ParamVarDecl*>& params, skr::SSL::EVariableQualifier qualifier, const skr::SSL::TypeDecl* type, const skr::SSL::Name& name);
+    void TranslateParam(std::vector<SSL::ParamVarDecl*>& params, const clang::ParmVarDecl* x);
     SSL::FunctionDecl* TranslateFunction(const clang::FunctionDecl* x, llvm::StringRef override_name = {});
+    const SSL::TypeDecl* TranslateLambda(const clang::LambdaExpr* x);
+    void TranslateLambdaCapturesToParams(std::vector<SSL::ParamVarDecl*>& params, const clang::LambdaExpr* x);
+    void TranslateLambdaCapturesToArgs(std::vector<SSL::Expr*>& args, const clang::LambdaExpr* x);
+    SSL::Stmt* TranslateCall(const clang::Decl* toCall, const clang::Stmt* callExpr);
 
     Stmt* TranslateStmt(const clang::Stmt *x);
     template <typename T>
@@ -57,11 +83,38 @@ protected:
     std::map<const clang::VarDecl*, skr::SSL::VarDecl*> _vars;
     std::map<const clang::FunctionDecl*, skr::SSL::FunctionDecl*> _funcs;
     std::map<const clang::EnumConstantDecl*, skr::SSL::GlobalVarDecl*> _enum_constants;
-    std::map<const clang::LambdaExpr*, skr::SSL::TypeDecl*> _lambdas;
+
+    std::map<const clang::LambdaExpr*, const skr::SSL::TypeDecl*> _lambda_types;
+    std::map<const clang::CXXMethodDecl*, const clang::LambdaExpr*> _lambda_methods;
+    std::map<const skr::SSL::TypeDecl*, const clang::LambdaExpr*> _lambda_wrappers;
+    std::map<const skr::SSL::VarDecl*, std::vector<skr::SSL::ParamVarDecl*>> _lambda_param_captures;
+
     uint64_t next_lambda_id = 0;
     uint64_t next_template_spec_id = 0;
     AST& AST;
     
+protected:
+    FunctionStack* root_stack = nullptr;
+    FunctionStack* current_stack = nullptr;
+    std::vector<FunctionStack*> _stacks;
+
+    FunctionStack* zzNewStack(const clang::FunctionDecl* func);
+    void appendStack(const clang::FunctionDecl* func)
+    {
+        auto prev = current_stack;
+        auto _new = zzNewStack(func);
+        _new->prev = prev;
+        current_stack = _new;
+        if (!root_stack) root_stack = _new;
+    }
+    void popStack()
+    {
+        if (current_stack)
+        {
+            current_stack = current_stack->prev;
+        }
+    }
+
 protected:
     void DumpWithLocation(const clang::Stmt *stmt) const;
     void DumpWithLocation(const clang::Decl *decl) const;
