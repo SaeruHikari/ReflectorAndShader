@@ -729,6 +729,16 @@ bool ASTConsumer::VisitFunctionDecl(const clang::FunctionDecl* x)
             else
                 ReportFatalError("Compute shader function must have kernel size attributes: " + std::string(x->getNameAsString()));
         }
+        else if (StageName == "vertex")
+        {
+            auto Kernel = TranslateFunction(x, FunctionName);
+            Kernel->add_attr(AST.DeclareAttr<StageAttr>(ShaderStage::Vertex));
+        }
+        else if (StageName == "fragment")
+        {
+            auto Kernel = TranslateFunction(x, FunctionName);
+            Kernel->add_attr(AST.DeclareAttr<StageAttr>(ShaderStage::Fragment));
+        }
         else
         {
             ReportFatalError(x, "Unsupported stage function: {}", std::string(x->getNameAsString()));
